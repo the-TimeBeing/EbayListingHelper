@@ -22,7 +22,7 @@ function App() {
       // Remove the parameter and force a check
       url.searchParams.delete('auth');
       window.history.replaceState({}, '', url.toString());
-      // Call with no argument to use the default
+      // Call checkAuthStatus without arguments
       checkAuthStatus();
     }
   }, [checkAuthStatus]);
@@ -31,7 +31,6 @@ function App() {
   useEffect(() => {
     const initialAuth = async () => {
       try {
-        // Call with no argument to use the default
         await checkAuthStatus();
         checkAuthParam();
       } catch (error) {
@@ -79,19 +78,27 @@ function App() {
 
   console.log("App rendered with auth state:", { isAuthenticated, isLoading, initialCheckDone, currentLocation: location });
 
-  // Helper function to create protected routes
-  const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
-    return isAuthenticated ? children : <SignInPage />;
-  };
-
+  // Simplified routing - direct check for authentication
   return (
     <Switch>
-      <Route path="/" render={() => <ProtectedRoute><PhotoUploadPage /></ProtectedRoute>} />
-      <Route path="/photos" render={() => <ProtectedRoute><PhotoUploadPage /></ProtectedRoute>} />
-      <Route path="/processing" render={() => <ProtectedRoute><ProcessingPage /></ProtectedRoute>} />
-      <Route path="/confirmation" render={() => <ProtectedRoute><ConfirmationPage /></ProtectedRoute>} />
-      <Route path="/error" render={() => <ProtectedRoute><ErrorPage /></ProtectedRoute>} />
-      <Route render={() => <NotFound />} />
+      <Route path="/">
+        {isAuthenticated ? <PhotoUploadPage /> : <SignInPage />}
+      </Route>
+      <Route path="/photos">
+        {isAuthenticated ? <PhotoUploadPage /> : <SignInPage />}
+      </Route>
+      <Route path="/processing">
+        {isAuthenticated ? <ProcessingPage /> : <SignInPage />}
+      </Route>
+      <Route path="/confirmation">
+        {isAuthenticated ? <ConfirmationPage /> : <SignInPage />}
+      </Route>
+      <Route path="/error">
+        {isAuthenticated ? <ErrorPage /> : <SignInPage />}
+      </Route>
+      <Route>
+        <NotFound />
+      </Route>
     </Switch>
   );
 }
