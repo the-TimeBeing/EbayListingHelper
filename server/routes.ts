@@ -68,8 +68,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       hasToken: !!req.session.ebayToken
     });
     
-    // Redirect to the photo upload page
-    res.redirect('/photos');
+    // Save the session explicitly
+    req.session.save((err) => {
+      if (err) {
+        console.error("Error saving session:", err);
+      }
+      
+      // Adding a timestamp to force no caching
+      const timestamp = new Date().getTime();
+      // Redirect to the frontend with a trigger to force auth check
+      res.redirect(`/photos?auth=${timestamp}`);
+    });
   });
 
   app.get("/api/auth/ebay/callback", async (req: Request, res: Response) => {
@@ -92,8 +101,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // For a real application with a database:
       // await storage.updateUserEbayTokens(userId, tokenData.access_token, tokenData.refresh_token, new Date(Date.now() + tokenData.expires_in * 1000));
 
-      // Redirect to the photo upload page
-      res.redirect('/photos');
+      // Save the session explicitly
+      req.session.save((err) => {
+        if (err) {
+          console.error("Error saving session:", err);
+        }
+        
+        // Adding a timestamp to force no caching
+        const timestamp = new Date().getTime();
+        // Redirect to the frontend with a trigger to force auth check
+        res.redirect(`/photos?auth=${timestamp}`);
+      });
     } catch (error) {
       console.error("eBay auth error:", error);
       res.status(500).json({ message: "Authentication failed", error: error.message });

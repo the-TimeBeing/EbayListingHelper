@@ -1,4 +1,4 @@
-import { useCallback, useState, useContext } from "react";
+import { useCallback, useContext } from "react";
 import { apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
 import { AuthContext } from "@/context/AuthContext";
@@ -7,37 +7,18 @@ export function useAuth() {
   const [location, setLocation] = useLocation();
   const authContext = useContext(AuthContext);
   
-  const checkAuthStatus = useCallback(async () => {
-    try {
-      authContext.setIsLoading(true);
-      const res = await fetch("/api/auth/status", { credentials: "include" });
-      const data = await res.json();
-      
-      if (data.isAuthenticated && data.hasEbayToken) {
-        authContext.setIsAuthenticated(true);
-      } else {
-        authContext.setIsAuthenticated(false);
-      }
-      console.log("Auth status checked:", data);
-    } catch (error) {
-      console.error("Error checking auth status:", error);
-      authContext.setIsAuthenticated(false);
-    } finally {
-      // Ensure loading state is turned off
-      console.log("Setting isLoading to false");
-      authContext.setIsLoading(false);
-      
-      // Force a re-render after a short delay if needed
-      setTimeout(() => {
-        console.log("Force update - confirming isLoading is false");
-        authContext.setIsLoading(false);
-      }, 500);
-    }
-  }, [authContext]);
+  // Use the checkAuthStatus directly from the context
+  const { checkAuthStatus } = authContext;
 
   const getEbayAuthUrl = useCallback(async () => {
     try {
-      const res = await fetch("/api/auth/ebay/url");
+      const res = await fetch("/api/auth/ebay/url", {
+        // Add no-cache headers to prevent browser caching
+        cache: "no-store",
+        headers: {
+          "Cache-Control": "no-cache"
+        }
+      });
       const data = await res.json();
       return data.url;
     } catch (error) {
@@ -49,6 +30,7 @@ export function useAuth() {
   const signInWithEbay = useCallback(async () => {
     try {
       const url = await getEbayAuthUrl();
+      // Redirect to the eBay auth URL or our test login endpoint
       window.location.href = url;
     } catch (error) {
       console.error("Error signing in with eBay:", error);
