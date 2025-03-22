@@ -72,12 +72,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     req.session.save((err) => {
       if (err) {
         console.error("Error saving session:", err);
+        return res.status(500).send("Session error");
       }
       
-      // Adding a timestamp to force no caching
-      const timestamp = new Date().getTime();
-      // Redirect to the frontend with a trigger to force auth check
-      res.redirect(`/photos?auth=${timestamp}`);
+      // Redirect to the root instead of /photos to let the React router handle it
+      // This seems to be more reliable with how the app is structured
+      res.redirect('/?auth=1');
     });
   });
 
@@ -105,12 +105,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       req.session.save((err) => {
         if (err) {
           console.error("Error saving session:", err);
+          return res.status(500).send("Session error");
         }
         
-        // Adding a timestamp to force no caching
-        const timestamp = new Date().getTime();
-        // Redirect to the frontend with a trigger to force auth check
-        res.redirect(`/photos?auth=${timestamp}`);
+        // Redirect to the root instead of /photos to let the React router handle it
+        // This seems to be more reliable with how the app is structured
+        res.redirect('/?auth=1');
       });
     } catch (error) {
       console.error("eBay auth error:", error);

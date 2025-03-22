@@ -3,7 +3,7 @@ import { createContext, useState, ReactNode, useEffect, useCallback } from "reac
 interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
-  checkAuthStatus: () => Promise<void>;
+  checkAuthStatus: (force?: boolean) => Promise<void>;
   setIsAuthenticated: (value: boolean) => void;
   setIsLoading: (value: boolean) => void;
 }
@@ -42,6 +42,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         cache: "no-store",
         headers: {
           "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
           // Add a timestamp to prevent caching
           "X-Timestamp": now.toString()
         }
@@ -65,23 +66,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Initial check on mount
   useEffect(() => {
-    checkAuthStatus(true);
+    const initialCheck = async () => {
+      await checkAuthStatus(true);
+    };
+    initialCheck();
   }, []);
-
-  // Check for auth parameter in URL - this is added by our login endpoints
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    const hasAuthParam = url.searchParams.has('auth');
-
-    if (hasAuthParam) {
-      // Remove the auth parameter from URL to avoid unnecessary rechecks
-      url.searchParams.delete('auth');
-      window.history.replaceState({}, '', url.toString());
-
-      // Recheck auth status if auth parameter was present
-      checkAuthStatus(true);
-    }
-  }, [checkAuthStatus]);
 
   // Debug log for auth state changes
   useEffect(() => {
