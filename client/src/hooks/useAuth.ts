@@ -23,7 +23,15 @@ export function useAuth() {
       console.error("Error checking auth status:", error);
       authContext.setIsAuthenticated(false);
     } finally {
+      // Ensure loading state is turned off
+      console.log("Setting isLoading to false");
       authContext.setIsLoading(false);
+      
+      // Force a re-render after a short delay if needed
+      setTimeout(() => {
+        console.log("Force update - confirming isLoading is false");
+        authContext.setIsLoading(false);
+      }, 500);
     }
   }, [authContext]);
 
