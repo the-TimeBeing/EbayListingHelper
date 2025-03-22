@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import SignInPage from "./pages/SignInPage";
 import PhotoUploadPage from "./pages/PhotoUploadPage";
 import ProcessingPage from "./pages/ProcessingPage";
@@ -12,6 +12,7 @@ function App() {
   const authContext = useContext(AuthContext);
   const { isAuthenticated, isLoading, checkAuthStatus } = authContext;
   const [initialCheckDone, setInitialCheckDone] = useState(false);
+  const [location, setLocation] = useLocation();
   
   // Initial auth check when the app loads
   useEffect(() => {
@@ -27,6 +28,21 @@ function App() {
     
     initialAuth();
   }, [checkAuthStatus]);
+
+  // Redirect after authentication changes
+  useEffect(() => {
+    if (isAuthenticated && initialCheckDone) {
+      // If user is authenticated and on sign-in page, redirect to photos
+      if (location === '/' || location === '/signin') {
+        setLocation('/photos');
+      }
+    } else if (!isAuthenticated && initialCheckDone) {
+      // If user is not authenticated, redirect to sign-in
+      if (location !== '/' && location !== '/signin') {
+        setLocation('/');
+      }
+    }
+  }, [isAuthenticated, initialCheckDone, location, setLocation]);
 
   // Show loading spinner while checking authentication
   if (isLoading && !initialCheckDone) {

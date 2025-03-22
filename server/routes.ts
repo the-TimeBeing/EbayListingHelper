@@ -138,11 +138,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No photos uploaded" });
       }
 
+      // Convert file buffers to base64 strings for storage in session
       const photos = (req.files as Express.Multer.File[]).map(file => {
-        return {
-          filename: file.originalname,
-          data: file.buffer.toString('base64')
-        };
+        return `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
       });
 
       // Store photos in session for later use
@@ -154,7 +152,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Photo upload error:", error);
-      res.status(500).json({ message: "Failed to upload photos", error: error.message });
+      res.status(500).json({ message: "Failed to upload photos", error: (error as Error).message });
     }
   });
 
@@ -183,7 +181,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Base64 photo upload error:", error);
-      res.status(500).json({ message: "Failed to upload photos", error: error.message });
+      res.status(500).json({ message: "Failed to upload photos", error: (error as Error).message });
     }
   });
 

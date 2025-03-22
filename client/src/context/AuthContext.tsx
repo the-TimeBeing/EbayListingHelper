@@ -23,16 +23,27 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [lastCheckTime, setLastCheckTime] = useState<number>(0);
 
   // Function to check authentication status
-  const checkAuthStatus = useCallback(async () => {
+  const checkAuthStatus = useCallback(async (force = false) => {
     try {
+      // Don't check more than once every 2 seconds unless forced
+      const now = Date.now();
+      if (!force && now - lastCheckTime < 2000) {
+        return;
+      }
+      
+      setLastCheckTime(now);
       setIsLoading(true);
+      
       const res = await fetch("/api/auth/status", { 
         credentials: "include",
         cache: "no-store",
         headers: {
-          "Cache-Control": "no-cache"
+          "Cache-Control": "no-cache",
+          // Add a timestamp to prevent caching
+          "X-Timestamp": now.toString()
         }
       });
       const data = await res.json();
@@ -50,6 +61,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Ensure loading state is turned off
       setIsLoading(false);
     }
+  }, [lastCheckTime]);
+
+  // Initial check on mount
+  useEffect(() => {
+    checkAuthStatus(true);
   }, []);
 
   // Check for auth parameter in URL - this is added by our login endpoints
@@ -63,7 +79,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       window.history.replaceState({}, '', url.toString());
 
       // Recheck auth status if auth parameter was present
-      checkAuthStatus();
+      checkAuthStatus(true);
     }
   }, [checkAuthStatus]);
 
