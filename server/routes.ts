@@ -49,8 +49,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // eBay authentication
   app.get("/api/auth/ebay/url", (req: Request, res: Response) => {
+    // For development/testing, we'll provide both the real eBay URL and a local test auth URL
     const authUrl = ebayService.getOAuthUrl();
-    res.json({ url: authUrl });
+    const testAuthUrl = "/api/auth/test-login"; // Local test auth endpoint
+    res.json({ url: process.env.NODE_ENV === 'production' ? authUrl : testAuthUrl });
+  });
+  
+  // Test authentication endpoint (for development only)
+  app.get("/api/auth/test-login", (req: Request, res: Response) => {
+    // Mock a successful authentication for testing purposes
+    req.session.userId = 1;
+    req.session.ebayToken = "mock-token-for-testing";
+    req.session.ebayRefreshToken = "mock-refresh-token";
+    req.session.ebayTokenExpiry = new Date(Date.now() + 3600 * 1000); // 1 hour from now
+    
+    console.log("Test login successful, session:", {
+      userId: req.session.userId,
+      hasToken: !!req.session.ebayToken
+    });
+    
+    // Redirect to the photo upload page
+    res.redirect('/photos');
   });
 
   app.get("/api/auth/ebay/callback", async (req: Request, res: Response) => {
