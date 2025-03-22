@@ -18,10 +18,12 @@ function App() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-pulse text-ebay-blue text-xl">Loading...</div>
+        <div className="animate-pulse text-[#0064d2] text-xl">Loading...</div>
       </div>
     );
   }
+
+  console.log("App rendered with auth state:", { isAuthenticated, isLoading });
 
   return (
     <Switch>

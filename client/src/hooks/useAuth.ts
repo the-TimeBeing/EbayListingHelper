@@ -18,6 +18,7 @@ export function useAuth() {
       } else {
         authContext.setIsAuthenticated(false);
       }
+      console.log("Auth status checked:", data);
     } catch (error) {
       console.error("Error checking auth status:", error);
       authContext.setIsAuthenticated(false);
