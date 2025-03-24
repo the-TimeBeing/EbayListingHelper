@@ -37,24 +37,41 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setLastCheckTime(now);
       setIsLoading(true);
       
-      const res = await fetch("/api/auth/status", { 
+      // Add a random parameter to prevent browser caching
+      const timestamp = new Date().getTime();
+      const res = await fetch(`/api/auth/status?nocache=${timestamp}`, { 
         credentials: "include",
         cache: "no-store",
         headers: {
-          "Cache-Control": "no-cache",
+          "Cache-Control": "no-cache, no-store, must-revalidate",
           "Pragma": "no-cache",
+          "Expires": "0",
           // Add a timestamp to prevent caching
           "X-Timestamp": now.toString()
         }
       });
-      const data = await res.json();
       
-      if (data.isAuthenticated && data.hasEbayToken) {
+      if (!res.ok) {
+        console.error("Auth status check failed with status:", res.status);
+        setIsAuthenticated(false);
+        return;
+      }
+      
+      const data = await res.json();
+      console.log("Auth status checked:", data);
+      
+      // Give higher priority to the URL auth parameter
+      const url = new URL(window.location.href);
+      const hasAuthParam = url.searchParams.has('auth');
+      
+      if (hasAuthParam) {
+        // If the auth parameter is present, trust the server response
+        setIsAuthenticated(data.isAuthenticated && data.hasEbayToken);
+      } else if (data.isAuthenticated && data.hasEbayToken) {
         setIsAuthenticated(true);
       } else {
         setIsAuthenticated(false);
       }
-      console.log("Auth status checked:", data);
     } catch (error) {
       console.error("Error checking auth status:", error);
       setIsAuthenticated(false);

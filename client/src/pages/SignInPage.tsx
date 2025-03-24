@@ -21,8 +21,15 @@ export default function SignInPage() {
   const handleTestLogin = async () => {
     try {
       setIsTestLoading(true);
-      // Directly access the test login endpoint
-      window.location.href = "/api/auth/test-login";
+      
+      // Fetch to test login endpoint manually instead of direct navigation
+      await fetch("/api/auth/test-login", { 
+        method: "GET",
+        credentials: "include"
+      });
+      
+      // Force an authentication check after the request
+      await signInWithEbay();
     } catch (error) {
       console.error("Test login error:", error);
       setIsTestLoading(false);

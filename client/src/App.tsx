@@ -47,6 +47,10 @@ function App() {
   useEffect(() => {
     if (!initialCheckDone) return;
     
+    // Get the current URL to check if we're coming from a test login
+    const url = new URL(window.location.href);
+    const hasAuthParam = url.searchParams.has('auth');
+    
     if (isAuthenticated) {
       // If user is authenticated and on sign-in page, redirect to photos
       if (location === '/' || location === '/signin') {
@@ -55,7 +59,8 @@ function App() {
       }
     } else {
       // If user is not authenticated, redirect to sign-in
-      if (location !== '/' && location !== '/signin') {
+      // But don't redirect if we have the auth parameter (we're in the process of authenticating)
+      if (!hasAuthParam && location !== '/' && location !== '/signin') {
         console.log("Redirecting to / due to no authentication");
         setLocation('/');
       }

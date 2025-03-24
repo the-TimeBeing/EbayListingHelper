@@ -29,14 +29,30 @@ export function useAuth() {
 
   const signInWithEbay = useCallback(async () => {
     try {
+      // Add a special parameter to explicitly reset auth state
+      const timestamp = new Date().getTime();
+      await fetch(`/api/auth/status?forceCheck=${timestamp}`, { 
+        credentials: "include",
+        cache: "no-store"
+      });
+      
+      // Force an authentication check
+      const authResult = await checkAuthStatus(true);
+      
+      // If we're already authenticated, don't redirect
+      if (authContext.isAuthenticated) {
+        setLocation('/photos');
+        return;
+      }
+      
+      // Otherwise get the eBay auth URL and redirect
       const url = await getEbayAuthUrl();
-      // Redirect to the eBay auth URL or our test login endpoint
       window.location.href = url;
     } catch (error) {
       console.error("Error signing in with eBay:", error);
       throw new Error("Failed to initiate eBay sign-in");
     }
-  }, [getEbayAuthUrl]);
+  }, [getEbayAuthUrl, authContext.isAuthenticated, checkAuthStatus, setLocation]);
 
   const signOut = useCallback(async () => {
     try {
