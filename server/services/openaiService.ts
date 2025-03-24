@@ -19,6 +19,14 @@ export class OpenAIService {
 
   async analyzeImage(base64Image: string): Promise<string> {
     try {
+      // Clean up the base64 string if it includes data URL prefix
+      let processedBase64 = base64Image;
+      if (base64Image.includes('base64,')) {
+        processedBase64 = base64Image.split('base64,')[1];
+      }
+      
+      console.log(`Analyzing image with OpenAI (base64 length: ${processedBase64.length.toLocaleString()} characters)`);
+      
       const response = await this.openai.chat.completions.create({
         model: MODEL,
         messages: [
@@ -32,7 +40,9 @@ export class OpenAIService {
               {
                 type: "image_url",
                 image_url: {
-                  url: `data:image/jpeg;base64,${base64Image}`
+                  url: base64Image.includes('data:') 
+                    ? base64Image  // Keep the full data URL if it's already formatted
+                    : `data:image/jpeg;base64,${processedBase64}` // Otherwise add the prefix
                 }
               }
             ],
@@ -41,10 +51,18 @@ export class OpenAIService {
         max_tokens: 500,
       });
 
+      console.log("Successfully analyzed image with OpenAI");
       return response.choices[0].message.content || "";
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error analyzing image with OpenAI:", error);
-      throw new Error("Failed to analyze image");
+      // More detailed error logging
+      if (error.response) {
+        console.error("OpenAI API Error Response:", {
+          status: error.response.status,
+          data: error.response.data
+        });
+      }
+      throw new Error(`Failed to analyze image: ${error.message || "Unknown error"}`);
     }
   }
 
@@ -54,6 +72,10 @@ export class OpenAIService {
     conditionLevel: number
   ): Promise<ChatGPTListingContent> {
     try {
+      console.log("Generating listing content with OpenAI...");
+      console.log(`Condition: ${condition}, Level: ${conditionLevel}`);
+      console.log(`Product details length: ${productDetails.length} characters`);
+      
       const prompt = `
 Create content for an eBay listing based on the following product details:
 
@@ -85,6 +107,8 @@ Format your response as a JSON object with the following fields:
         ],
         response_format: { type: "json_object" }
       });
+      
+      console.log("Successfully generated listing content with OpenAI");
 
       const content = JSON.parse(response.choices[0].message.content || "{}");
       
@@ -93,9 +117,18 @@ Format your response as a JSON object with the following fields:
         description: content.description || "",
         conditionDescription: content.conditionDescription || ""
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error generating listing content with OpenAI:", error);
-      throw new Error("Failed to generate listing content");
+      
+      // More detailed error logging
+      if (error.response) {
+        console.error("OpenAI API Error Response:", {
+          status: error.response.status,
+          data: error.response.data
+        });
+      }
+      
+      throw new Error(`Failed to generate listing content: ${error.message || "Unknown error"}`);
     }
   }
 }
