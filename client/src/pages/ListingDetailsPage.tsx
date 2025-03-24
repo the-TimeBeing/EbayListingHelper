@@ -268,9 +268,9 @@ export default function ListingDetailsPage() {
             <Button
               variant="outline"
               className="flex items-center gap-2"
-              onClick={() => navigate(`/edit-listing/${listing.id}`)}
+              onClick={() => navigate(`/draft-listings`)}
             >
-              Edit Listing
+              Back to Listings
             </Button>
           </div>
         </div>

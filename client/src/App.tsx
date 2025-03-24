@@ -62,7 +62,9 @@ function App() {
       if (location !== '/' && 
           location !== '/signin' && 
           location !== '/test' && 
-          location !== '/direct-photos') {
+          location !== '/direct-photos' &&
+          location !== '/draft-listings' &&
+          !location.startsWith('/listing/')) {
         console.log("Redirecting to / due to no authentication");
         setLocation('/');
       }
