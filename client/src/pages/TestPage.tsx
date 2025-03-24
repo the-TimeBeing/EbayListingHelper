@@ -15,6 +15,14 @@ export default function TestPage() {
           </Button>
         </a>
         
+        <a href="/draft-listings" className="w-full">
+          <Button
+            className="w-full py-6 mb-4 rounded-full bg-green-600 hover:bg-green-700 text-white font-semibold text-lg"
+          >
+            View Draft Listings
+          </Button>
+        </a>
+        
         <a href="/api/auth/test-login-redirect" className="w-full">
           <Button
             className="w-full py-6 mb-4 rounded-full bg-gray-700 hover:bg-gray-800 text-white font-semibold text-lg"

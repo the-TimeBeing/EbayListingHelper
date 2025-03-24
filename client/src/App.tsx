@@ -6,6 +6,8 @@ import ProcessingPage from "./pages/ProcessingPage";
 import ConfirmationPage from "./pages/ConfirmationPage";
 import ErrorPage from "./pages/ErrorPage";
 import TestPage from "./pages/TestPage";
+import DraftListingsPage from "./pages/DraftListingsPage";
+import ListingDetailsPage from "./pages/ListingDetailsPage";
 import NotFound from "@/pages/not-found";
 import { useContext, useEffect, useState, useCallback } from "react";
 import { AuthContext } from "./context/AuthContext";
@@ -104,6 +106,13 @@ function App() {
       </Route>
       <Route path="/error">
         {isAuthenticated ? <ErrorPage /> : <SignInPage />}
+      </Route>
+      {/* Draft listings pages */}
+      <Route path="/draft-listings">
+        <DraftListingsPage />
+      </Route>
+      <Route path="/listing/:id">
+        <ListingDetailsPage />
       </Route>
       {/* Test page that's always accessible regardless of auth state */}
       <Route path="/test">
