@@ -5,6 +5,7 @@ import DirectPhotoUpload from "./pages/DirectPhotoUpload";
 import ProcessingPage from "./pages/ProcessingPage";
 import ConfirmationPage from "./pages/ConfirmationPage";
 import ErrorPage from "./pages/ErrorPage";
+import TestPage from "./pages/TestPage";
 import NotFound from "@/pages/not-found";
 import { useContext, useEffect, useState, useCallback } from "react";
 import { AuthContext } from "./context/AuthContext";
@@ -55,8 +56,11 @@ function App() {
         setLocation('/photos');
       }
     } else {
-      // If user is not authenticated, redirect to sign-in
-      if (location !== '/' && location !== '/signin') {
+      // If user is not authenticated, redirect to sign-in, except for exempt pages
+      if (location !== '/' && 
+          location !== '/signin' && 
+          location !== '/test' && 
+          location !== '/direct-photos') {
         console.log("Redirecting to / due to no authentication");
         setLocation('/');
       }
@@ -100,6 +104,10 @@ function App() {
       </Route>
       <Route path="/error">
         {isAuthenticated ? <ErrorPage /> : <SignInPage />}
+      </Route>
+      {/* Test page that's always accessible regardless of auth state */}
+      <Route path="/test">
+        <TestPage />
       </Route>
       <Route>
         <NotFound />
