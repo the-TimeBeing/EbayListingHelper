@@ -68,15 +68,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       hasToken: !!req.session.ebayToken
     });
     
-    // Save the session explicitly
+    // Save the session and respond with JSON instead of redirecting
     req.session.save((err) => {
       if (err) {
         console.error("Error saving session:", err);
-        return res.status(500).send("Session error");
+        return res.status(500).json({ success: false, error: "Session error" });
       }
       
-      // Directly redirect to the photos page with a special parameter to force auth check
-      res.redirect('/photos?auth=1');
+      // Return success JSON instead of redirecting
+      return res.status(200).json({ 
+        success: true, 
+        isAuthenticated: true,
+        message: "Test login successful" 
+      });
     });
   });
 
