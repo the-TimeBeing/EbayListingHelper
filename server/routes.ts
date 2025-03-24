@@ -55,7 +55,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ url: process.env.NODE_ENV === 'production' ? authUrl : testAuthUrl });
   });
   
-  // Test authentication endpoint (API returning JSON response)
+  // Test authentication endpoint with HTML page for client-side redirect
   app.get("/api/auth/test-login", (req: Request, res: Response) => {
     // Mock a successful authentication for testing purposes
     req.session.userId = 1;
@@ -68,19 +68,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       hasToken: !!req.session.ebayToken
     });
     
-    // Save the session and respond with JSON instead of redirecting
+    // Save the session and send a redirect page
     req.session.save((err) => {
       if (err) {
         console.error("Error saving session:", err);
         return res.status(500).json({ success: false, error: "Session error" });
       }
       
-      // Return success JSON instead of redirecting
-      return res.status(200).json({ 
-        success: true, 
-        isAuthenticated: true,
-        message: "Test login successful" 
-      });
+      // Return HTML page with JavaScript redirect instead of JSON
+      return res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Redirecting...</title>
+          <meta http-equiv="refresh" content="1;url=/direct-photos">
+          <style>
+            body { font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f7f7f7; }
+            .container { text-align: center; padding: 2rem; max-width: 500px; }
+            h2 { color: #0064d2; margin-bottom: 1rem; }
+            p { color: #666; margin-bottom: 2rem; }
+            .loader { border: 5px solid #f3f3f3; border-top: 5px solid #0064d2; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 2rem; }
+            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="loader"></div>
+            <h2>Login Successful!</h2>
+            <p>Redirecting you to the photo upload page...</p>
+          </div>
+          <script>
+            // JavaScript redirect as fallback
+            setTimeout(function() {
+              window.location.href = '/direct-photos';
+            }, 1000);
+          </script>
+        </body>
+        </html>
+      `);
     });
   });
   

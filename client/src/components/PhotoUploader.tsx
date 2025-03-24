@@ -15,7 +15,9 @@ export default function PhotoUploader({ photos, setPhotos, maxPhotos }: PhotoUpl
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (!files) return;
+    if (!files || files.length === 0) return;
+
+    console.log("File upload triggered with", files.length, "files");
 
     // Check if adding new files would exceed the max
     if (photos.length + files.length > maxPhotos) {
@@ -24,21 +26,38 @@ export default function PhotoUploader({ photos, setPhotos, maxPhotos }: PhotoUpl
         description: `You can only upload up to ${maxPhotos} photos`,
         variant: "destructive"
       });
+      // Reset the input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
       return;
     }
 
+    // Create a new array to collect all photos
+    const newPhotos = [...photos];
+    let filesProcessed = 0;
+    
     // Process each file
     Array.from(files).forEach(file => {
       const reader = new FileReader();
+      
       reader.onload = (e) => {
         if (e.target?.result) {
-          setPhotos([...photos, e.target.result.toString()]);
+          newPhotos.push(e.target.result.toString());
+          filesProcessed++;
+          
+          // Once all files are processed, update the state once
+          if (filesProcessed === files.length) {
+            setPhotos(newPhotos);
+            console.log("All files processed, photos array updated with", newPhotos.length, "photos");
+          }
         }
       };
+      
       reader.readAsDataURL(file);
     });
 
-    // Reset the input
+    // Reset the input immediately after processing starts
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }

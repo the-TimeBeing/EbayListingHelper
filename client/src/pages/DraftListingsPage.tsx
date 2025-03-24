@@ -20,14 +20,33 @@ export default function DraftListingsPage() {
   useEffect(() => {
     const fetchListings = async () => {
       try {
+        console.log("[DRAFT LISTINGS] Fetching listings");
+        setIsLoading(true);
+        setError(null);
+        
+        // Force authentication by setting user ID on the server if needed
+        await apiRequest("GET", "/api/auth/status");
+        
         const response = await apiRequest("GET", "/api/listings");
+        console.log("[DRAFT LISTINGS] Response status:", response.status);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`[DRAFT LISTINGS] Error response (${response.status}):`, errorText);
+          throw new Error(`Error ${response.status}: ${errorText}`);
+        }
+        
         const result = await response.json();
+        console.log("[DRAFT LISTINGS] Successfully fetched listings:", result.length);
         setListings(result as Listing[]);
       } catch (error) {
-        console.error("Error fetching listings:", error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error("[DRAFT LISTINGS] Error fetching listings:", errorMessage);
+        setError(errorMessage);
+        
         toast({
           title: "Error",
-          description: "Failed to fetch your listings",
+          description: "Failed to fetch your listings. Please try again.",
           variant: "destructive"
         });
       } finally {
@@ -81,11 +100,20 @@ export default function DraftListingsPage() {
           variant="ghost" 
           size="icon" 
           className="mr-4"
-          onClick={() => navigate("/test")}
+          onClick={() => navigate("/")}
         >
           <ChevronLeft className="h-6 w-6" />
         </Button>
         <h1 className="text-2xl font-bold">Your Draft Listings</h1>
+        <div className="ml-auto">
+          <Button 
+            variant="outline" 
+            className="flex items-center gap-2"
+            onClick={() => navigate("/direct-photos")}
+          >
+            <Plus className="h-4 w-4" /> New Listing
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (

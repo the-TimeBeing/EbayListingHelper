@@ -20,6 +20,7 @@ export default function ListingDetailsPage() {
 
   useEffect(() => {
     if (!match || !params) {
+      console.log("[LISTING DETAILS] No match or params, redirecting to draft listings");
       navigate("/draft-listings");
       return;
     }
@@ -27,21 +28,40 @@ export default function ListingDetailsPage() {
     const fetchListing = async () => {
       try {
         const id = parseInt(params.id);
+        console.log(`[LISTING DETAILS] Fetching listing with ID: ${id}`);
+        
         if (isNaN(id)) {
+          console.error("[LISTING DETAILS] Invalid listing ID:", params.id);
           throw new Error("Invalid listing ID");
         }
 
+        // First, ensure we have authentication/session set up
+        await apiRequest("GET", "/api/auth/status");
+        
         const response = await apiRequest("GET", `/api/listings/${id}`);
+        console.log(`[LISTING DETAILS] Response status: ${response.status}`);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`[LISTING DETAILS] Error response (${response.status}):`, errorText);
+          throw new Error(`Error ${response.status}: ${errorText}`);
+        }
+        
         const result = await response.json();
+        console.log("[LISTING DETAILS] Successfully fetched listing:", result.id);
         setListing(result as Listing);
       } catch (error) {
-        console.error("Error fetching listing:", error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error("[LISTING DETAILS] Error fetching listing:", errorMessage);
+        
         toast({
           title: "Error",
-          description: "Failed to fetch listing details",
+          description: "Failed to fetch listing details. Please try again.",
           variant: "destructive"
         });
-        navigate("/draft-listings");
+        
+        // Delay navigation to allow the user to see the toast
+        setTimeout(() => navigate("/draft-listings"), 1500);
       } finally {
         setIsLoading(false);
       }
