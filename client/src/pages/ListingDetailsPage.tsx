@@ -142,10 +142,13 @@ export default function ListingDetailsPage() {
         {/* Image Gallery */}
         <div>
           <div className="bg-white rounded-lg overflow-hidden border border-gray-200 mb-4 aspect-square relative">
-            {listing.images && listing.images.length > 0 ? (
+            {listing.images && 
+             typeof listing.images === 'object' && 
+             Array.isArray(listing.images) && 
+             listing.images.length > 0 ? (
               <img 
-                src={listing.images[selectedImageIndex]} 
-                alt={listing.title} 
+                src={String(listing.images[selectedImageIndex])} 
+                alt={listing.title ?? 'Product image'} 
                 className="w-full h-full object-contain"
               />
             ) : (
@@ -162,7 +165,10 @@ export default function ListingDetailsPage() {
             </Button>
           </div>
           
-          {listing.images && listing.images.length > 1 && (
+          {listing.images && 
+           typeof listing.images === 'object' && 
+           Array.isArray(listing.images) && 
+           listing.images.length > 1 && (
             <div className="grid grid-cols-4 gap-2">
               {listing.images.map((image, index) => (
                 <div 
@@ -171,7 +177,7 @@ export default function ListingDetailsPage() {
                   onClick={() => setSelectedImageIndex(index)}
                 >
                   <img 
-                    src={image} 
+                    src={String(image)} 
                     alt={`Product view ${index + 1}`} 
                     className="w-full h-full object-cover"
                   />
@@ -218,13 +224,23 @@ export default function ListingDetailsPage() {
                   <span className="text-gray-600">Category:</span>
                   <span className="col-span-2">{listing.category || 'Not specified'}</span>
                 </div>
-                {listing.itemSpecifics && listing.itemSpecifics.length > 0 && 
-                  listing.itemSpecifics.map((spec, index) => (
-                    <div key={index} className="grid grid-cols-3 gap-2">
-                      <span className="text-gray-600">{Object.keys(spec)[0]}:</span>
-                      <span className="col-span-2">{Object.values(spec)[0]}</span>
-                    </div>
-                  ))
+                {listing.itemSpecifics && 
+                 typeof listing.itemSpecifics === 'object' && 
+                 Array.isArray(listing.itemSpecifics) && 
+                 listing.itemSpecifics.length > 0 && 
+                  listing.itemSpecifics.map((spec, index) => {
+                    if (typeof spec === 'object' && spec !== null) {
+                      const key = Object.keys(spec)[0];
+                      const value = Object.values(spec)[0];
+                      return (
+                        <div key={index} className="grid grid-cols-3 gap-2">
+                          <span className="text-gray-600">{key}:</span>
+                          <span className="col-span-2">{String(value)}</span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })
                 }
               </div>
             </TabsContent>
