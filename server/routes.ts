@@ -329,7 +329,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       req.session.processingProgress = {
         status: 'error',
-        error: error.message
+        currentStep: 'error',
+        stepsCompleted: 0,
+        totalSteps: 5,
+        error: error.message || "Unknown error during listing generation"
       };
       
       res.status(500).json({ message: "Failed to generate listing", error: error.message });
