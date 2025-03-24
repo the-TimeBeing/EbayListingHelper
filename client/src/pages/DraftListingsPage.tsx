@@ -17,7 +17,8 @@ export default function DraftListingsPage() {
   useEffect(() => {
     const fetchListings = async () => {
       try {
-        const result = await apiRequest("GET", "/api/listings");
+        const response = await apiRequest("GET", "/api/listings");
+        const result = await response.json();
         setListings(result as Listing[]);
       } catch (error) {
         console.error("Error fetching listings:", error);
@@ -36,7 +37,8 @@ export default function DraftListingsPage() {
 
   const handlePushToEbay = async (listingId: number) => {
     try {
-      const result = await apiRequest("POST", `/api/listings/${listingId}/push-to-ebay`);
+      const response = await apiRequest("POST", `/api/listings/${listingId}/push-to-ebay`);
+      const result = await response.json();
       
       toast({
         title: "Success!",

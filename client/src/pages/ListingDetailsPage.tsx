@@ -31,7 +31,8 @@ export default function ListingDetailsPage() {
           throw new Error("Invalid listing ID");
         }
 
-        const result = await apiRequest("GET", `/api/listings/${id}`);
+        const response = await apiRequest("GET", `/api/listings/${id}`);
+        const result = await response.json();
         setListing(result as Listing);
       } catch (error) {
         console.error("Error fetching listing:", error);
@@ -53,7 +54,8 @@ export default function ListingDetailsPage() {
     if (!listing) return;
     
     try {
-      const result = await apiRequest("POST", `/api/listings/${listing.id}/push-to-ebay`);
+      const response = await apiRequest("POST", `/api/listings/${listing.id}/push-to-ebay`);
+      const result = await response.json();
       
       toast({
         title: "Success!",

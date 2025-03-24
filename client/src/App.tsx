@@ -89,41 +89,70 @@ function App() {
 
   // Simplified routing - direct check for authentication
   return (
-    <Switch>
-      <Route path="/">
-        {isAuthenticated ? <PhotoUploadPage /> : <SignInPage />}
-      </Route>
-      <Route path="/photos">
-        {isAuthenticated ? <PhotoUploadPage /> : <SignInPage />}
-      </Route>
-      {/* This is a direct route that bypasses authentication checks */}
-      <Route path="/direct-photos">
-        <DirectPhotoUpload />
-      </Route>
-      <Route path="/processing">
-        {isAuthenticated ? <ProcessingPage /> : <SignInPage />}
-      </Route>
-      <Route path="/confirmation">
-        {isAuthenticated ? <ConfirmationPage /> : <SignInPage />}
-      </Route>
-      <Route path="/error">
-        {isAuthenticated ? <ErrorPage /> : <SignInPage />}
-      </Route>
-      {/* Draft listings pages */}
-      <Route path="/draft-listings">
-        <DraftListingsPage />
-      </Route>
-      <Route path="/listing/:id">
-        <ListingDetailsPage />
-      </Route>
-      {/* Test page that's always accessible regardless of auth state */}
-      <Route path="/test">
-        <TestPage />
-      </Route>
-      <Route>
-        <NotFound />
-      </Route>
-    </Switch>
+    <>
+      {/* Floating draft listings button for easy access */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <a href="/draft-listings">
+          <button
+            className="flex items-center justify-center p-4 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg"
+            title="View Draft Listings"
+          >
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              width="24" 
+              height="24" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="2" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+            >
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+              <path d="M9 12h6"></path>
+              <path d="M9 16h6"></path>
+            </svg>
+          </button>
+        </a>
+      </div>
+
+      <Switch>
+        <Route path="/">
+          {isAuthenticated ? <PhotoUploadPage /> : <SignInPage />}
+        </Route>
+        <Route path="/photos">
+          {isAuthenticated ? <PhotoUploadPage /> : <SignInPage />}
+        </Route>
+        {/* This is a direct route that bypasses authentication checks */}
+        <Route path="/direct-photos">
+          <DirectPhotoUpload />
+        </Route>
+        <Route path="/processing">
+          {isAuthenticated ? <ProcessingPage /> : <SignInPage />}
+        </Route>
+        <Route path="/confirmation">
+          {isAuthenticated ? <ConfirmationPage /> : <SignInPage />}
+        </Route>
+        <Route path="/error">
+          {isAuthenticated ? <ErrorPage /> : <SignInPage />}
+        </Route>
+        {/* Draft listings pages */}
+        <Route path="/draft-listings">
+          <DraftListingsPage />
+        </Route>
+        <Route path="/listing/:id">
+          <ListingDetailsPage />
+        </Route>
+        {/* Test page that's always accessible regardless of auth state */}
+        <Route path="/test">
+          <TestPage />
+        </Route>
+        <Route>
+          <NotFound />
+        </Route>
+      </Switch>
+    </>
   );
 }
 
