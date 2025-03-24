@@ -191,8 +191,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     try {
       const { photos } = req.body;
-
+      
+      console.log("Photo upload request received. Photos array:", photos ? `Array with ${photos.length} items` : "undefined");
+      
       if (!photos || !Array.isArray(photos) || photos.length === 0) {
+        console.log("Photo upload validation failed: No photos provided");
         return res.status(400).json({ message: "No photos provided" });
       }
 
@@ -224,6 +227,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     try {
       const { condition, conditionLevel } = req.body;
+      
+      console.log("Generating listing with condition:", condition, "level:", conditionLevel);
+      console.log("Session photos count:", req.session.photos ? req.session.photos.length : 0);
       
       if (!condition || !conditionLevel) {
         return res.status(400).json({ message: "Condition information is required" });
