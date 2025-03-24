@@ -17,8 +17,8 @@ export default function DraftListingsPage() {
   useEffect(() => {
     const fetchListings = async () => {
       try {
-        const result = await apiRequest<Listing[]>("GET", "/api/listings");
-        setListings(result);
+        const result = await apiRequest("GET", "/api/listings");
+        setListings(result as Listing[]);
       } catch (error) {
         console.error("Error fetching listings:", error);
         toast({
@@ -44,13 +44,21 @@ export default function DraftListingsPage() {
       });
       
       // Update the listing in state
-      setListings(prevListings => 
-        prevListings.map(listing => 
-          listing.id === listingId 
-            ? { ...listing, ebayDraftId: result.listing.ebayDraftId, status: result.listing.status } 
-            : listing
-        )
-      );
+      if (result && typeof result === 'object' && 'listing' in result) {
+        const updatedListing = result.listing as Partial<Listing>;
+        
+        setListings(prevListings => 
+          prevListings.map(listing => 
+            listing.id === listingId 
+              ? { 
+                  ...listing, 
+                  ebayDraftId: updatedListing.ebayDraftId || listing.ebayDraftId, 
+                  status: updatedListing.status || listing.status
+                } 
+              : listing
+          )
+        );
+      }
     } catch (error) {
       console.error("Error pushing to eBay:", error);
       toast({
@@ -106,11 +114,11 @@ export default function DraftListingsPage() {
             <Card key={listing.id} className="overflow-hidden">
               <CardContent className="p-0">
                 <div className="flex flex-col md:flex-row">
-                  {listing.images && listing.images.length > 0 ? (
+                  {listing.images && typeof listing.images === 'object' && Array.isArray(listing.images) && listing.images.length > 0 ? (
                     <div className="w-full md:w-48 h-48 overflow-hidden">
                       <img 
-                        src={listing.images[0]} 
-                        alt={listing.title} 
+                        src={String(listing.images[0])} 
+                        alt={listing.title ?? 'Product image'} 
                         className="w-full h-full object-cover"
                       />
                     </div>

@@ -19,7 +19,7 @@ export default function ListingDetailsPage() {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   useEffect(() => {
-    if (!match) {
+    if (!match || !params) {
       navigate("/draft-listings");
       return;
     }
@@ -31,8 +31,8 @@ export default function ListingDetailsPage() {
           throw new Error("Invalid listing ID");
         }
 
-        const result = await apiRequest<Listing>("GET", `/api/listings/${id}`);
-        setListing(result);
+        const result = await apiRequest("GET", `/api/listings/${id}`);
+        setListing(result as Listing);
       } catch (error) {
         console.error("Error fetching listing:", error);
         toast({
@@ -47,7 +47,7 @@ export default function ListingDetailsPage() {
     };
 
     fetchListing();
-  }, [match, params.id, navigate, toast]);
+  }, [match, params, navigate, toast]);
 
   const handlePushToEbay = async () => {
     if (!listing) return;
@@ -60,11 +60,15 @@ export default function ListingDetailsPage() {
         description: "Listing pushed to eBay as a draft",
       });
       
-      setListing({
-        ...listing,
-        ebayDraftId: result.listing.ebayDraftId,
-        status: result.listing.status
-      });
+      if (result && typeof result === 'object' && 'listing' in result) {
+        const updatedListing = result.listing as Partial<Listing>;
+        
+        setListing({
+          ...listing,
+          ebayDraftId: updatedListing.ebayDraftId || listing.ebayDraftId,
+          status: updatedListing.status || listing.status
+        });
+      }
     } catch (error) {
       console.error("Error pushing to eBay:", error);
       toast({
