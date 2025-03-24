@@ -161,9 +161,12 @@ export class EbayService {
   async getSoldItems(userId: number, searchTerms: string): Promise<EbaySoldItem[]> {
     const accessToken = await this.ensureValidToken(userId);
     
+    const url = `${this.getBaseUrl()}/buy/browse/v1/item_summary/search?q=${encodeURIComponent(searchTerms)}&filter=soldItems:true`;
+    console.log(`[EBAY SERVICE] Fetching sold items with URL: ${url}`);
+    console.log(`[EBAY SERVICE] Search Terms: "${searchTerms}"`);
+    
     // Using the Browse API with a filter for sold items
-    const response = await fetch(
-      `${this.getBaseUrl()}/buy/browse/v1/item_summary/search?q=${encodeURIComponent(searchTerms)}&filter=soldItems:true`, 
+    const response = await fetch(url, 
       {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -173,10 +176,29 @@ export class EbayService {
 
     if (!response.ok) {
       const error = await response.text();
+      console.error(`[EBAY SERVICE] Sold items search failed: ${error}`);
       throw new Error(`eBay sold items search failed: ${error}`);
     }
 
     const data = await response.json();
+    console.log(`[EBAY SERVICE] Sold items response:`, JSON.stringify(data, null, 2).substring(0, 1000) + '...');
+    
+    if (data.itemSummaries && data.itemSummaries.length > 0) {
+      console.log(`[EBAY SERVICE] Found ${data.itemSummaries.length} sold items`);
+      data.itemSummaries.forEach((item: any, index: number) => {
+        console.log(`[EBAY SERVICE] Sold item ${index + 1}:`, {
+          id: item.itemId,
+          title: item.title,
+          price: item.price?.value,
+          currency: item.price?.currency,
+          url: item.itemWebUrl,
+          categories: item.categories?.map((c: any) => c.categoryName).join(', ')
+        });
+      });
+    } else {
+      console.log(`[EBAY SERVICE] No sold items found for search: "${searchTerms}"`);
+    }
+    
     return data.itemSummaries || [];
   }
 
