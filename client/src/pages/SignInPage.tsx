@@ -6,6 +6,7 @@ import { useState } from "react";
 export default function SignInPage() {
   const { signInWithEbay } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [isTestLoading, setIsTestLoading] = useState(false);
 
   const handleSignIn = async () => {
     try {
@@ -14,6 +15,17 @@ export default function SignInPage() {
     } catch (error) {
       console.error("Sign in error:", error);
       setIsLoading(false);
+    }
+  };
+
+  const handleTestLogin = async () => {
+    try {
+      setIsTestLoading(true);
+      // Directly access the test login endpoint
+      window.location.href = "/api/auth/test-login";
+    } catch (error) {
+      console.error("Test login error:", error);
+      setIsTestLoading(false);
     }
   };
 
@@ -52,9 +64,18 @@ export default function SignInPage() {
           <Button
             onClick={handleSignIn}
             disabled={isLoading}
-            className="w-full py-6 rounded-full bg-gradient-to-r from-[#e53238] to-[#0064d2] hover:opacity-90 text-white font-semibold text-lg"
+            className="w-full py-6 mb-4 rounded-full bg-gradient-to-r from-[#e53238] to-[#0064d2] hover:opacity-90 text-white font-semibold text-lg"
           >
             {isLoading ? "Connecting..." : "Sign in with eBay"}
+          </Button>
+          
+          {/* Developer testing button */}
+          <Button
+            onClick={handleTestLogin}
+            disabled={isTestLoading}
+            className="w-full py-4 rounded-full bg-gray-700 hover:bg-gray-800 text-white"
+          >
+            {isTestLoading ? "Connecting..." : "Developer Test Login"}
           </Button>
         </CardContent>
       </Card>
