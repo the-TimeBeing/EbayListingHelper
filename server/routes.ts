@@ -75,9 +75,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).send("Session error");
       }
       
-      // Redirect to the root instead of /photos to let the React router handle it
-      // This seems to be more reliable with how the app is structured
-      res.redirect('/?auth=1');
+      // Directly redirect to the photos page with a special parameter to force auth check
+      res.redirect('/photos?auth=1');
     });
   });
 
@@ -108,9 +107,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(500).send("Session error");
         }
         
-        // Redirect to the root instead of /photos to let the React router handle it
-        // This seems to be more reliable with how the app is structured
-        res.redirect('/?auth=1');
+        // Directly redirect to the photos page with a special parameter to force auth check
+        res.redirect('/photos?auth=1');
       });
     } catch (error) {
       console.error("eBay auth error:", error);
