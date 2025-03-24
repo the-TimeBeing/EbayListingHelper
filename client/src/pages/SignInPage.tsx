@@ -26,36 +26,8 @@ export default function SignInPage() {
     try {
       setIsTestLoading(true);
       
-      // Make the test login request and get JSON response
-      const response = await fetch("/api/auth/test-login", { 
-        method: "GET",
-        credentials: "include",
-        headers: {
-          "Accept": "application/json"
-        }
-      });
-      
-      // Check response is OK
-      if (!response.ok) {
-        throw new Error(`Server error: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      if (!data.success) {
-        throw new Error(data.message || "Login failed");
-      }
-      
-      // Manually force auth status check
-      await checkAuthStatus(true);
-      
-      // Wait a bit to ensure state propagation
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // Directly set auth state then navigate
-      // This bypasses any potential race conditions
-      authContext.setIsAuthenticated(true);
-      setLocation("/photos");
+      // Make a much simpler test login that just uses window.location
+      window.location.href = "/api/auth/test-login-redirect";
     } catch (error) {
       console.error("Test login error:", error);
       setIsTestLoading(false);

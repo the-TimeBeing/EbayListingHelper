@@ -55,7 +55,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ url: process.env.NODE_ENV === 'production' ? authUrl : testAuthUrl });
   });
   
-  // Test authentication endpoint (for development only)
+  // Test authentication endpoint (API returning JSON response)
   app.get("/api/auth/test-login", (req: Request, res: Response) => {
     // Mock a successful authentication for testing purposes
     req.session.userId = 1;
@@ -81,6 +81,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isAuthenticated: true,
         message: "Test login successful" 
       });
+    });
+  });
+  
+  // Test authentication endpoint with redirect (for simpler client implementation)
+  app.get("/api/auth/test-login-redirect", (req: Request, res: Response) => {
+    // Mock a successful authentication for testing purposes
+    req.session.userId = 1;
+    req.session.ebayToken = "mock-token-for-testing";
+    req.session.ebayRefreshToken = "mock-refresh-token";
+    req.session.ebayTokenExpiry = new Date(Date.now() + 3600 * 1000); // 1 hour from now
+    
+    console.log("Test login (redirect) successful, session:", {
+      userId: req.session.userId,
+      hasToken: !!req.session.ebayToken
+    });
+    
+    // Save the session and redirect directly to /photos
+    req.session.save((err) => {
+      if (err) {
+        console.error("Error saving session:", err);
+        return res.status(500).send("Session error");
+      }
+      
+      // Directly redirect to the photos page
+      res.redirect('/photos');
     });
   });
 
