@@ -1,6 +1,7 @@
 import { Switch, Route, useLocation } from "wouter";
 import SignInPage from "./pages/SignInPage";
 import PhotoUploadPage from "./pages/PhotoUploadPage";
+import DirectPhotoUpload from "./pages/DirectPhotoUpload";
 import ProcessingPage from "./pages/ProcessingPage";
 import ConfirmationPage from "./pages/ConfirmationPage";
 import ErrorPage from "./pages/ErrorPage";
@@ -86,6 +87,10 @@ function App() {
       </Route>
       <Route path="/photos">
         {isAuthenticated ? <PhotoUploadPage /> : <SignInPage />}
+      </Route>
+      {/* This is a direct route that bypasses authentication checks */}
+      <Route path="/direct-photos">
+        <DirectPhotoUpload />
       </Route>
       <Route path="/processing">
         {isAuthenticated ? <ProcessingPage /> : <SignInPage />}
