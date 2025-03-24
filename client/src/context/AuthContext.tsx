@@ -35,7 +35,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
       
       setLastCheckTime(now);
-      setIsLoading(true);
+      
+      // Only set loading to true for initial checks or when forcing a check
+      if (force) {
+        setIsLoading(true);
+      }
       
       // Add a random parameter to prevent browser caching
       const timestamp = new Date().getTime();
@@ -53,28 +57,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       if (!res.ok) {
         console.error("Auth status check failed with status:", res.status);
-        setIsAuthenticated(false);
+        if (force) {
+          setIsAuthenticated(false);
+        }
         return;
       }
       
       const data = await res.json();
       console.log("Auth status checked:", data);
       
-      // Give higher priority to the URL auth parameter
-      const url = new URL(window.location.href);
-      const hasAuthParam = url.searchParams.has('auth');
-      
-      if (hasAuthParam) {
-        // If the auth parameter is present, trust the server response
-        setIsAuthenticated(data.isAuthenticated && data.hasEbayToken);
-      } else if (data.isAuthenticated && data.hasEbayToken) {
+      if (data.isAuthenticated && data.hasEbayToken) {
+        // Always update if authenticated
         setIsAuthenticated(true);
-      } else {
+      } else if (force) {
+        // Only set to false when forced to avoid unwanted flickering
         setIsAuthenticated(false);
       }
     } catch (error) {
       console.error("Error checking auth status:", error);
-      setIsAuthenticated(false);
+      if (force) {
+        setIsAuthenticated(false);
+      }
     } finally {
       // Ensure loading state is turned off
       setIsLoading(false);

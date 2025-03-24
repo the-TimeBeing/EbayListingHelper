@@ -2,11 +2,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useState } from "react";
+import { useLocation } from "wouter";
 
 export default function SignInPage() {
-  const { signInWithEbay } = useAuth();
+  const { signInWithEbay, checkAuthStatus } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isTestLoading, setIsTestLoading] = useState(false);
+  const [_, setLocation] = useLocation();
 
   const handleSignIn = async () => {
     try {
@@ -22,14 +24,21 @@ export default function SignInPage() {
     try {
       setIsTestLoading(true);
       
-      // Fetch to test login endpoint manually instead of direct navigation
-      await fetch("/api/auth/test-login", { 
+      // Make the test login request
+      const response = await fetch("/api/auth/test-login", { 
         method: "GET",
-        credentials: "include"
+        credentials: "include",
+        redirect: "manual" // Don't follow redirects automatically
       });
       
-      // Force an authentication check after the request
-      await signInWithEbay();
+      // Give the session time to be saved
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Manually force auth status check
+      await checkAuthStatus(true);
+      
+      // Direct manual redirect to photos page
+      setLocation("/photos");
     } catch (error) {
       console.error("Test login error:", error);
       setIsTestLoading(false);
