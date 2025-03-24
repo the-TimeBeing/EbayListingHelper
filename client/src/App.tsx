@@ -55,21 +55,21 @@ function App() {
       // If user is authenticated and on sign-in page, redirect to photos
       if (location === '/' || location === '/signin') {
         console.log("Redirecting to /photos after authentication");
-        setLocation('/photos');
+        window.location.href = '/photos';
       }
     } else {
       // If user is not authenticated, redirect to sign-in, except for exempt pages
-      if (location !== '/' && 
-          location !== '/signin' && 
-          location !== '/test' && 
-          location !== '/direct-photos' &&
-          location !== '/draft-listings' &&
-          !location.startsWith('/listing/')) {
-        console.log("Redirecting to / due to no authentication");
-        setLocation('/');
+      const exemptPages = ['/', '/signin', '/test', '/direct-photos', '/draft-listings'];
+      const isExempt = exemptPages.includes(location) || location.startsWith('/listing/');
+      
+      if (!isExempt) {
+        console.log("Redirecting to / due to no authentication", location);
+        window.location.href = '/';
+      } else {
+        console.log("Not redirecting, exempt page:", location);
       }
     }
-  }, [isAuthenticated, initialCheckDone, location, setLocation]);
+  }, [isAuthenticated, initialCheckDone, location]);
 
   // Listen for location changes to recheck auth param
   useEffect(() => {
@@ -90,8 +90,9 @@ function App() {
   // Simplified routing - direct check for authentication
   return (
     <>
-      {/* Floating draft listings button for easy access */}
-      <div className="fixed bottom-6 right-6 z-50">
+      {/* Floating menu buttons for easy access */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
+        {/* View Listings Button */}
         <a href="/draft-listings">
           <button
             className="flex items-center justify-center p-4 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg"
@@ -112,6 +113,28 @@ function App() {
               <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
               <path d="M9 12h6"></path>
               <path d="M9 16h6"></path>
+            </svg>
+          </button>
+        </a>
+        
+        {/* Create New Listing Button */}
+        <a href="/direct-photos">
+          <button
+            className="flex items-center justify-center p-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg"
+            title="Create New Listing"
+          >
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              width="24" 
+              height="24" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="2" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+            >
+              <path d="M12 5v14M5 12h14"></path>
             </svg>
           </button>
         </a>
