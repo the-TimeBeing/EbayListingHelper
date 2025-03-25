@@ -198,6 +198,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Handle eBay authentication on the default callback and API route for flexibility
+  app.get("/", async (req: Request, res: Response, next: NextFunction) => {
+    // Check if this is an eBay OAuth callback with authorization code
+    if (req.query.code) {
+      try {
+        const { code } = req.query;
+        
+        if (!code || typeof code !== 'string') {
+          throw new Error("Invalid authorization code");
+        }
+
+        // Get eBay OAuth tokens
+        const tokenData = await ebayService.getAccessToken(code);
+        
+        // Generate a random username for first-time users
+        let userId = 0;
+        let user;
+        
+        // Create or find the user with these tokens
+        if (!req.session.userId) {
+          // This is a new user, create one with the eBay tokens
+          const username = `ebay_user_${Date.now()}`;
+          const insertUser = {
+            username: username,
+            // A fake password is required by our schema, but we won't use it for eBay auth
+            password: `ebay_pass_${Math.random().toString(36).substring(2, 15)}`, 
+            ebayToken: tokenData.access_token,
+            ebayRefreshToken: tokenData.refresh_token,
+            ebayTokenExpiry: new Date(Date.now() + tokenData.expires_in * 1000)
+          };
+          
+          user = await storage.createUser(insertUser);
+          userId = user.id;
+          console.log(`Created new user: ${username} with ID: ${userId}`);
+        } else {
+          // Existing user, update their tokens
+          userId = req.session.userId;
+          user = await storage.getUser(userId);
+          
+          if (!user) {
+            throw new Error("User not found");
+          }
+          
+          user = await storage.updateUserEbayTokens(
+            userId,
+            tokenData.access_token,
+            tokenData.refresh_token,
+            new Date(Date.now() + tokenData.expires_in * 1000)
+          );
+          
+          console.log(`Updated tokens for user ID: ${userId}`);
+        }
+        
+        // Store everything in the session
+        req.session.userId = userId;
+        req.session.ebayToken = tokenData.access_token;
+        req.session.ebayRefreshToken = tokenData.refresh_token;
+        req.session.ebayTokenExpiry = new Date(Date.now() + tokenData.expires_in * 1000);
+
+        // Save the session explicitly
+        req.session.save((err) => {
+          if (err) {
+            console.error("Error saving session:", err);
+            return res.status(500).send("Session error");
+          }
+          
+          // Directly redirect to the photos page with a special parameter to force auth check
+          res.redirect('/photos?auth=1');
+        });
+      } catch (error) {
+        console.error("eBay auth error:", error);
+        res.status(500).json({ message: "Authentication failed", error: error instanceof Error ? error.message : String(error) });
+      }
+      return; // Important to stop further processing
+    }
+    
+    // Not an OAuth callback, let the request pass through to the client app
+    next();
+  });
+  
+  // Also keep the API route for compatibility
   app.get("/api/auth/ebay/callback", async (req: Request, res: Response) => {
     try {
       const { code } = req.query;
