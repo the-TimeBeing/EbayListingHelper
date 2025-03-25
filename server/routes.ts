@@ -56,6 +56,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ url: authUrl });
   });
   
+  // Direct handler for the /direct-photos route to handle eBay OAuth callback
+  app.get("/direct-photos", async (req: Request, res: Response) => {
+    console.log("[DIRECT PHOTOS ROUTE] Accessed with query params:", req.query);
+    
+    // Check if this is an eBay callback with a code
+    if (req.query.code && typeof req.query.code === 'string') {
+      console.log("[DIRECT PHOTOS ROUTE] Detected eBay auth code, processing");
+      
+      try {
+        // Exchange the code for access tokens
+        const code = req.query.code;
+        const tokenData = await ebayService.getAccessToken(code);
+        console.log("[DIRECT PHOTOS ROUTE] Successfully received tokens from eBay");
+        
+        // Create a new user or use existing session user
+        let user;
+        
+        if (!req.session.userId) {
+          // Create new user
+          user = await storage.createUser({
+            username: `ebay_user_${Date.now()}`,
+            password: `auth_${Math.random().toString(36).substring(2, 15)}`
+          });
+          console.log("[DIRECT PHOTOS ROUTE] Created new user with ID:", user.id);
+        } else {
+          // Update existing user
+          user = await storage.getUser(req.session.userId);
+          if (!user) {
+            throw new Error("User not found in session");
+          }
+          console.log("[DIRECT PHOTOS ROUTE] Using existing user with ID:", user.id);
+        }
+        
+        // Calculate token expiry
+        const expiryDate = new Date();
+        expiryDate.setSeconds(expiryDate.getSeconds() + tokenData.expires_in);
+        
+        // Update user with the tokens
+        user = await storage.updateUserEbayTokens(
+          user.id,
+          tokenData.access_token,
+          tokenData.refresh_token,
+          expiryDate
+        );
+        
+        // Set session variables
+        req.session.userId = user.id;
+        req.session.ebayToken = tokenData.access_token;
+        req.session.ebayRefreshToken = tokenData.refresh_token;
+        req.session.ebayTokenExpiry = expiryDate;
+        
+        // Save session
+        await new Promise<void>((resolve, reject) => {
+          req.session.save(err => {
+            if (err) {
+              console.error("[DIRECT PHOTOS ROUTE] Session save error:", err);
+              reject(err);
+            } else {
+              resolve();
+            }
+          });
+        });
+        
+        console.log("[DIRECT PHOTOS ROUTE] Authentication successful, serving DirectPhotoUpload page");
+        
+        // Set a flag in the URL to indicate authentication was successful
+        res.redirect('/?auth=success');
+      } catch (error) {
+        console.error("[DIRECT PHOTOS ROUTE] Error processing OAuth callback:", error);
+        
+        // Redirect to the error page with details
+        res.redirect(`/error?message=${encodeURIComponent(error instanceof Error ? error.message : String(error))}`);
+      }
+    } else {
+      console.log("[DIRECT PHOTOS ROUTE] No auth code detected, continuing to client app");
+      // If no code is present, just serve the React app
+      res.redirect('/');
+    }
+  });
+  
   // Static redirect route for eBay OAuth that should always work
   app.get("/ebay-oauth/callback", async (req: Request, res: Response) => {
     console.log("[FIXED REDIRECT ROUTE] eBay OAuth callback received with query params:", req.query);
