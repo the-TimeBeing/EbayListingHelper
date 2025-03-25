@@ -719,15 +719,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { condition, conditionLevel } = req.body;
       
-      console.log("Generating listing with condition:", condition, "level:", conditionLevel);
-      console.log("Session photos count:", req.session.photos ? req.session.photos.length : 0);
+      console.log("Generate endpoint - Session state:", {
+        userId: req.session.userId,
+        hasPhotos: !!req.session.photos,
+        photoCount: req.session.photos?.length,
+        photoTypes: req.session.photos?.map(p => typeof p),
+        firstPhotoPreview: req.session.photos?.[0]?.substring(0, 50)
+      });
       
       if (!condition || !conditionLevel) {
         return res.status(400).json({ message: "Condition information is required" });
       }
 
-      if (!req.session.photos || !Array.isArray(req.session.photos) || req.session.photos.length === 0) {
-        return res.status(400).json({ message: "No photos available for processing" });
+      // More detailed photo validation
+      if (!req.session.photos) {
+        return res.status(400).json({ message: "No photos in session" });
+      }
+      
+      if (!Array.isArray(req.session.photos)) {
+        return res.status(400).json({ message: "Photos must be an array" });
+      }
+      
+      if (req.session.photos.length === 0) {
+        return res.status(400).json({ message: "Photos array is empty" });
+      }
+
+      // Validate that photos are base64 strings
+      const validPhotos = req.session.photos.every(photo => 
+        typeof photo === 'string' && photo.startsWith('data:image/')
+      );
+      
+      if (!validPhotos) {
+        return res.status(400).json({ message: "Invalid photo format" });
       }
 
       // For tracking progress
