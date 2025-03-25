@@ -440,15 +440,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
           throw new Error("Invalid authorization code");
         }
 
-        console.log("eBay code found, redirecting to debug page for easier processing");
+        console.log(`Processing eBay auth code directly: ${code.substring(0, 20)}...`);
         
-        // Instead of processing the code directly, redirect to our debug tool
-        // This is a more reliable solution for handling the eBay auth flow
-        return res.redirect(`/debug-ebay-callback?code=${encodeURIComponent(code)}`);
+        // Get the access token using the code
+        const tokenData = await ebayService.getAccessToken(code);
+        console.log("eBay token received, setting up user session");
+        
+        // Generate a random username for first-time users
+        let userId = 0;
+        let user;
+        
+        // Create or find the user with these tokens
+        if (!req.session.userId) {
+          // This is a new user, create one with the eBay tokens
+          const username = `ebay_user_${Date.now()}`;
+          const insertUser = {
+            username: username,
+            // A password is required by our schema, but we won't use it for eBay auth
+            password: `ebay_pass_${Math.random().toString(36).substring(2, 15)}`, 
+            ebayToken: tokenData.access_token,
+            ebayRefreshToken: tokenData.refresh_token,
+            ebayTokenExpiry: new Date(Date.now() + tokenData.expires_in * 1000)
+          };
+          
+          user = await storage.createUser(insertUser);
+          userId = user.id;
+          console.log(`Created new user: ${username} with ID: ${userId}`);
+        } else {
+          // Existing user, update their tokens
+          userId = req.session.userId;
+          user = await storage.updateUserEbayTokens(
+            userId,
+            tokenData.access_token,
+            tokenData.refresh_token,
+            new Date(Date.now() + tokenData.expires_in * 1000)
+          );
+          console.log(`Updated eBay tokens for existing user ID: ${userId}`);
+        }
+        
+        // Set the tokens in the session for immediate use
+        req.session.userId = userId;
+        req.session.ebayToken = tokenData.access_token;
+        req.session.ebayRefreshToken = tokenData.refresh_token;
+        req.session.ebayTokenExpiry = new Date(Date.now() + tokenData.expires_in * 1000);
+        
+        // Explicitly save the session to ensure persistence
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error("Error saving session after eBay auth:", saveErr);
+            return res.status(500).send("Error saving session after authentication");
+          }
+          
+          console.log("eBay auth successful, session saved:", { userId });
+          // Direct to photo upload page
+          return res.redirect('/direct-photos');
+        });
         
       } catch (error) {
-        console.error("eBay auth redirect error:", error);
-        res.status(500).json({ message: "Authentication redirect failed", error: error instanceof Error ? error.message : String(error) });
+        console.error("eBay auth processing error:", error);
+        res.status(500).json({ message: "Authentication failed", error: error instanceof Error ? error.message : String(error) });
       }
       return; // Important to stop further processing
     }
