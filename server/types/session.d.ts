@@ -9,6 +9,7 @@ declare module 'express-session' {
     ebayRefreshToken?: string;
     ebayTokenExpiry?: Date;
     photos?: string[];
+    hasUploadedPhotos?: boolean; // Flag to track if photos have been uploaded
     processingProgress?: {
       status: string;
       currentStep: string;

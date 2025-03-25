@@ -693,37 +693,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Store photos in session
-      req.session.photos = [...photos]; // Make a copy to ensure it's a new array reference
+      // Store photos directly in the session
+      req.session.photos = photos;
       
-      // Force session regeneration to ensure it's properly saved
-      req.session.regenerate((regErr) => {
-        if (regErr) {
-          console.error("Error regenerating session:", regErr);
-          return res.status(500).json({ message: "Failed to regenerate session" });
+      // Set a flag to indicate this session has photos
+      req.session.hasUploadedPhotos = true;
+      
+      // Save the session explicitly to ensure data persistence
+      req.session.save((saveErr) => {
+        if (saveErr) {
+          console.error("Error saving session with photos:", saveErr);
+          return res.status(500).json({ message: "Failed to save photos to session" });
         }
         
-        // Re-establish user and photos in new session
-        req.session.userId = req.session.userId || 1;
-        req.session.photos = photos;
+        console.log("Photos successfully saved to session:", photos.length, "Photos status:", !!req.session.photos, "First photo length:", req.session.photos[0]?.length);
         
-        // Save the session explicitly
-        req.session.save((saveErr) => {
-          if (saveErr) {
-            console.error("Error saving session with photos:", saveErr);
-            return res.status(500).json({ message: "Failed to save photos to session" });
-          }
-          
-          console.log("Photos successfully saved to session:", photos.length, "Session ID:", req.session.id);
-          res.json({
-            message: "Photos uploaded successfully",
-            count: photos.length
-          });
+        // Return immediately with the photos count
+        res.json({
+          message: "Photos uploaded successfully",
+          count: photos.length,
+          sessionId: req.session.id
         });
       });
     } catch (error) {
       console.error("Base64 photo upload error:", error);
-      res.status(500).json({ message: "Failed to upload photos", error: error instanceof Error ? error.message : String(error) });
+      res.status(500).json({ 
+        message: "Failed to upload photos", 
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
@@ -734,9 +731,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       req.session.userId = 1; // Set default user ID for test mode
     }
     try {
-      const { condition, conditionLevel } = req.body;
+      const { condition, conditionLevel, sessionId } = req.body;
       
       console.log("Generate endpoint - Session state:", {
+        id: req.session.id,
+        clientSessionId: sessionId || 'not provided',
         userId: req.session.userId,
         hasPhotos: !!req.session.photos,
         photoCount: req.session.photos?.length,

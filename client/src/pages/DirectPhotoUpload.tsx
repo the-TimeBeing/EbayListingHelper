@@ -30,14 +30,25 @@ export default function DirectPhotoUpload() {
       setIsLoading(true);
       
       // First upload the photos
-      await apiRequest("POST", "/api/photos/upload-base64", { photos });
+      const photoUploadResponse = await apiRequest("POST", "/api/photos/upload-base64", { photos });
+      const photoData = await photoUploadResponse.json();
+      
+      console.log("Photos uploaded successfully. Response:", { 
+        count: photoData.count, 
+        sessionId: photoData.sessionId
+      });
+      
+      // Small delay to ensure session persistence is complete (mitigates race conditions)
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       // Then generate the listing
       const conditionLabels = ["", "Used - Poor", "Used - Fair", "Used - Good", "Like New", "New"];
       
       await apiRequest("POST", "/api/listings/generate", {
         condition: conditionLabels[condition],
-        conditionLevel: condition
+        conditionLevel: condition,
+        // Pass the session ID to ensure we get the right session context
+        sessionId: photoData.sessionId
       });
       
       // Navigate to processing page
