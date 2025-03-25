@@ -15,7 +15,8 @@ export class EbayService {
     // Use the current domain for redirect URI if not provided
     // This ensures it works on Replit and other environments
     const deployedUrl = process.env.REPLIT_DEPLOYMENT_DOMAIN || '';
-    // Always use the HTTPS URL for eBay callback 
+    // eBay OAuth requires a redirect to the EXACT URL registered with the app
+    // So we must use the root URL with no trailing path or additional segments
     const defaultRedirectUrl = `https://${deployedUrl || 'pixly.replit.app'}`;
     
     // Use root path as eBay callback handler, ensure no trailing slash
@@ -234,21 +235,8 @@ export class EbayService {
       }
     } catch (error) {
       console.error('[EBAY SERVICE] Error in searchByImage:', error);
-      // Only use fallback if it's not an auth error
-      if (error instanceof Error && error.message.includes('authenticate with eBay')) {
-        throw error; // Re-throw auth errors
-      }
-      // For other errors, return mock data
-      return [
-        {
-          itemId: 'fallback-123456',
-          title: 'Fallback Product (API Error)',
-          price: { value: '39.99', currency: 'USD' },
-          image: { imageUrl: 'https://example.com/fallback.jpg' },
-          itemWebUrl: 'https://ebay.com/fallback',
-          categories: [{ categoryId: '456', categoryName: 'Home & Garden' }]
-        }
-      ];
+      // Re-throw the error instead of using fallback data
+      throw error;
     }
   }
 
@@ -301,19 +289,8 @@ export class EbayService {
       }
     } catch (error) {
       console.error('[EBAY SERVICE] Error in getSoldItems:', error);
-      // For demo purposes, return mock data if the API call fails
-      return [
-        {
-          itemId: 'fallback-sold-123456',
-          title: 'Fallback Sold Product - ' + searchTerms,
-          price: { value: '45.99', currency: 'USD' },
-          soldPrice: { value: '41.99', currency: 'USD' },
-          soldDate: new Date().toISOString(),
-          image: { imageUrl: 'https://example.com/fallback-sold.jpg' },
-          itemWebUrl: 'https://ebay.com/fallback-sold',
-          categories: [{ categoryId: '456', categoryName: 'Home & Garden' }]
-        }
-      ];
+      // Re-throw the error instead of using fallback data
+      throw error;
     }
   }
 
