@@ -19,8 +19,8 @@ export class EbayService {
       ? `https://${deployedUrl}`
       : 'https://ai-powered-ebay-listing-assistant.replit.app';
     
-    // Use root path for callback since that's where the handler is
-    this.redirectUri = process.env.EBAY_REDIRECT_URI || defaultRedirectUrl;
+    // Use our special callback route that will work in both dev and production
+    this.redirectUri = process.env.EBAY_REDIRECT_URI || `${defaultRedirectUrl}/ebay-callback`;
     console.log(`[EBAY SERVICE] Using callback URL: ${this.redirectUri}`);
     this.sandboxMode = process.env.EBAY_SANDBOX_MODE === 'true';
 
