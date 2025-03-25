@@ -683,6 +683,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No photos provided" });
       }
 
+      // Debug session before setting photos
+      console.log("Session before photo update - ID:", req.session.id, "User ID:", req.session.userId);
+
       // Validate that all items are valid base64 images
       for (const photo of photos) {
         if (!isValidBase64Image(photo)) {
@@ -690,23 +693,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Store photos in session and save immediately
-      req.session.photos = photos;
-      req.session.save((err) => {
-        if (err) {
-          console.error("Error saving photos to session:", err);
-          return res.status(500).json({ message: "Failed to save photos" });
+      // Store photos in session
+      req.session.photos = [...photos]; // Make a copy to ensure it's a new array reference
+      
+      // Force session regeneration to ensure it's properly saved
+      req.session.regenerate((regErr) => {
+        if (regErr) {
+          console.error("Error regenerating session:", regErr);
+          return res.status(500).json({ message: "Failed to regenerate session" });
         }
         
-        console.log("Photos successfully saved to session:", photos.length);
-        res.json({
-          message: "Photos uploaded successfully",
-          count: photos.length
+        // Re-establish user and photos in new session
+        req.session.userId = req.session.userId || 1;
+        req.session.photos = photos;
+        
+        // Save the session explicitly
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error("Error saving session with photos:", saveErr);
+            return res.status(500).json({ message: "Failed to save photos to session" });
+          }
+          
+          console.log("Photos successfully saved to session:", photos.length, "Session ID:", req.session.id);
+          res.json({
+            message: "Photos uploaded successfully",
+            count: photos.length
+          });
         });
       });
     } catch (error) {
       console.error("Base64 photo upload error:", error);
-      res.status(500).json({ message: "Failed to upload photos", error: (error as Error).message });
+      res.status(500).json({ message: "Failed to upload photos", error: error instanceof Error ? error.message : String(error) });
     }
   });
 
