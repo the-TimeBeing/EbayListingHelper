@@ -18,6 +18,26 @@ function App() {
   const [initialCheckDone, setInitialCheckDone] = useState(false);
   const [location, setLocation] = useLocation();
   
+  // Check if the URL contains an eBay code, and if so, redirect to let the server handle it
+  const handleEbayCallback = useCallback(() => {
+    // Only run in the browser
+    if (typeof window === "undefined") return;
+    
+    const url = new URL(window.location.href);
+    // Check for eBay authorization code in the URL
+    if (url.searchParams.has('code') && location === '/') {
+      console.log("eBay code detected in URL, redirecting to server handler");
+      
+      // Store the full URL
+      const fullUrl = window.location.href;
+      
+      // Redirect to our debug page with the code for manual processing
+      window.location.href = `/debug-ebay-callback?code=${encodeURIComponent(fullUrl)}`;
+      return true;
+    }
+    return false;
+  }, [location]);
+  
   // Check for auth parameter in URL
   const checkAuthParam = useCallback(() => {
     const url = new URL(window.location.href);
@@ -33,6 +53,13 @@ function App() {
   
   // Initial auth check when the app loads
   useEffect(() => {
+    // First check if this is an eBay callback that needs to be handled by the server
+    const isEbayCallback = handleEbayCallback();
+    if (isEbayCallback) {
+      console.log("Handling eBay callback, skipping normal app initialization");
+      return;
+    }
+    
     const initialAuth = async () => {
       try {
         await checkAuthStatus();
@@ -45,7 +72,7 @@ function App() {
     };
     
     initialAuth();
-  }, [checkAuthStatus, checkAuthParam]);
+  }, [checkAuthStatus, checkAuthParam, handleEbayCallback]);
 
   // Redirect after authentication changes
   useEffect(() => {
@@ -59,8 +86,10 @@ function App() {
       }
     } else {
       // If user is not authenticated, redirect to sign-in, except for exempt pages
-      const exemptPages = ['/', '/signin', '/test', '/direct-photos', '/draft-listings'];
-      const isExempt = exemptPages.includes(location) || location.startsWith('/listing/');
+      const exemptPages = ['/', '/signin', '/test', '/direct-photos', '/draft-listings', '/debug-ebay-callback'];
+      const isExempt = exemptPages.includes(location) || 
+                      location.startsWith('/listing/') || 
+                      location.includes('code=');
       
       if (!isExempt) {
         console.log("Redirecting to / due to no authentication", location);
@@ -71,10 +100,13 @@ function App() {
     }
   }, [isAuthenticated, initialCheckDone, location]);
 
-  // Listen for location changes to recheck auth param
+  // Listen for location changes to recheck auth param and eBay callback
   useEffect(() => {
-    checkAuthParam();
-  }, [location, checkAuthParam]);
+    const isEbayCallback = handleEbayCallback();
+    if (!isEbayCallback) {
+      checkAuthParam();
+    }
+  }, [location, checkAuthParam, handleEbayCallback]);
 
   // Show loading spinner while checking authentication
   if (isLoading && !initialCheckDone) {
