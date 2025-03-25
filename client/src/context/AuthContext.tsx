@@ -66,13 +66,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const data = await res.json();
       console.log("Auth status checked:", data);
       
-      if (data.isAuthenticated && data.hasEbayToken) {
-        // Always update if authenticated
-        setIsAuthenticated(true);
-      } else if (force) {
-        // Only set to false when forced to avoid unwanted flickering
-        setIsAuthenticated(false);
-      }
+      // Update authentication state based on server response
+      setIsAuthenticated(data.isAuthenticated);
+      
+      // Log authentication details
+      console.log(`Auth state updated: isAuthenticated=${data.isAuthenticated}, hasEbayToken=${data.hasEbayToken}`);
     } catch (error) {
       console.error("Error checking auth status:", error);
       if (force) {

@@ -59,7 +59,7 @@ function App() {
       }
     } else {
       // If user is not authenticated, redirect to sign-in, except for exempt pages
-      const exemptPages = ['/', '/signin', '/test', '/direct-photos', '/draft-listings'];
+      const exemptPages = ['/', '/signin', '/test', '/direct-photos', '/draft-listings', '/processing'];
       const isExempt = exemptPages.includes(location) || location.startsWith('/listing/');
       
       if (!isExempt) {
@@ -152,7 +152,7 @@ function App() {
           <DirectPhotoUpload />
         </Route>
         <Route path="/processing">
-          {isAuthenticated ? <ProcessingPage /> : <SignInPage />}
+          <ProcessingPage />
         </Route>
         <Route path="/confirmation">
           {isAuthenticated ? <ConfirmationPage /> : <SignInPage />}
