@@ -90,9 +90,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Set session variables
       req.session.userId = user.id;
-      req.session.ebayToken = user.ebayToken;
-      req.session.ebayRefreshToken = user.ebayRefreshToken;
-      req.session.ebayTokenExpiry = user.ebayTokenExpiry;
+      req.session.ebayToken = user.ebayToken || undefined;
+      req.session.ebayRefreshToken = user.ebayRefreshToken || undefined;
+      req.session.ebayTokenExpiry = user.ebayTokenExpiry || undefined;
       
       console.log("Test login successful, session:", {
         userId: req.session.userId,
@@ -173,9 +173,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Set session variables
       req.session.userId = user.id;
-      req.session.ebayToken = user.ebayToken;
-      req.session.ebayRefreshToken = user.ebayRefreshToken;
-      req.session.ebayTokenExpiry = user.ebayTokenExpiry;
+      req.session.ebayToken = user.ebayToken || undefined;
+      req.session.ebayRefreshToken = user.ebayRefreshToken || undefined;
+      req.session.ebayTokenExpiry = user.ebayTokenExpiry || undefined;
       
       console.log("Test login (redirect) successful, session:", {
         userId: req.session.userId,
