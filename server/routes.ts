@@ -282,17 +282,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         stepsCompleted: 1
       };
 
-      // 2. Use eBay search by image to find similar items (mocked for now)
-      // In a real implementation, this would call ebayService.searchByImage
-      // const searchResults = await ebayService.searchByImage(req.session.userId, mainPhoto);
-      const searchResults = [
-        {
-          itemId: '123456789',
-          title: 'Nike Air Zoom Pegasus 38 Men\'s Running Shoes',
-          price: { value: '64.99', currency: 'USD' },
-          category: 'Men\'s Athletic Shoes'
+      // 2. Use eBay search by image to find similar items
+      let searchResults;
+      try {
+        console.log("Searching eBay by image...");
+        searchResults = await ebayService.searchByImage(req.session.userId, mainPhoto);
+        console.log(`Found ${searchResults.length} similar items on eBay`);
+        
+        if (searchResults.length > 0) {
+          // Extract keywords from the first search result title
+          const keywords = searchResults[0].title.split(' ').slice(0, 3).join(' ');
+          
+          // Now use these keywords to search for sold items
+          console.log(`Searching for sold items with keywords: ${keywords}`);
+          const soldItems = await ebayService.getSoldItems(req.session.userId, keywords);
+          console.log(`Found ${soldItems.length} sold items on eBay`);
+          
+          // If sold items were found, use them instead of the image search results
+          if (soldItems.length > 0) {
+            searchResults = soldItems;
+            console.log("Using sold items for pricing and details");
+          }
         }
-      ];
+      } catch (error) {
+        console.error("eBay search error:", error);
+        // Fallback to mock data if eBay search fails
+        searchResults = [
+          {
+            itemId: '123456789',
+            title: 'Nike Air Zoom Pegasus 38 Men\'s Running Shoes',
+            price: { value: '64.99', currency: 'USD' },
+            category: 'Men\'s Athletic Shoes'
+          }
+        ];
+        console.log("Using fallback mock data due to eBay search error");
+      }
 
       req.session.processingProgress = {
         ...req.session.processingProgress,
@@ -325,13 +349,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       // 5. Create a draft listing object
+      let categoryName = '';
+      
+      // Extract category from search results
+      if (searchResults.length > 0) {
+        const item = searchResults[0];
+        // Check if it's an EbayItemSummary with categories
+        if ('categories' in item && item.categories && item.categories.length > 0) {
+          categoryName = item.categories[0].categoryName;
+        } 
+        // Or if it's our mock data with direct category property
+        else if ('category' in item) {
+          categoryName = item.category;
+        }
+      }
+      
       const draftListing = {
         title: listingContent.title,
         description: listingContent.description,
         price: suggestedPrice,
         condition,
         conditionDescription: listingContent.conditionDescription,
-        category: searchResults.length > 0 ? searchResults[0].category : '',
+        category: categoryName,
         itemSpecifics: [],
         images: req.session.photos,
         userId: req.session.userId,

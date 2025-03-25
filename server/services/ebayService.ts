@@ -138,24 +138,61 @@ export class EbayService {
   async searchByImage(userId: number, imageBase64: string): Promise<EbayItemSummary[]> {
     const accessToken = await this.ensureValidToken(userId);
     
-    const response = await fetch(`${this.getBaseUrl()}/buy/browse/v1/item_summary/search_by_image`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        image: imageBase64
-      })
-    });
+    console.log(`[EBAY SERVICE] Searching by image (base64 string length: ${imageBase64.length})`);
+    
+    // Check if we need to trim the data:image prefix
+    const imageData = imageBase64.includes('base64,') 
+      ? imageBase64.split('base64,')[1] 
+      : imageBase64;
+    
+    console.log(`[EBAY SERVICE] Prepared image data for search (length: ${imageData.length})`);
+    
+    const url = `${this.getBaseUrl()}/buy/browse/v1/item_summary/search_by_image`;
+    console.log(`[EBAY SERVICE] eBay search by image URL: ${url}`);
+    
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          image: imageData
+        })
+      });
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`eBay search by image failed: ${error}`);
+      console.log(`[EBAY SERVICE] eBay search by image response status: ${response.status}`);
+      
+      if (!response.ok) {
+        const error = await response.text();
+        console.error(`[EBAY SERVICE] eBay search by image failed: ${error}`);
+        throw new Error(`eBay search by image failed: ${error}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.itemSummaries && data.itemSummaries.length > 0) {
+        console.log(`[EBAY SERVICE] Found ${data.itemSummaries.length} items through image search`);
+        // Log first few items for debugging
+        data.itemSummaries.slice(0, 3).forEach((item: any, index: number) => {
+          console.log(`[EBAY SERVICE] Image search result ${index + 1}:`, {
+            id: item.itemId,
+            title: item.title,
+            price: item.price?.value,
+            currency: item.price?.currency,
+            url: item.itemWebUrl
+          });
+        });
+        return data.itemSummaries;
+      } else {
+        console.log('[EBAY SERVICE] No items found through image search');
+        return [];
+      }
+    } catch (error) {
+      console.error('[EBAY SERVICE] Error in searchByImage:', error);
+      throw error;
     }
-
-    const data = await response.json();
-    return data.itemSummaries || [];
   }
 
   async getSoldItems(userId: number, searchTerms: string): Promise<EbaySoldItem[]> {
