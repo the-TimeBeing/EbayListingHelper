@@ -200,6 +200,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Handle eBay authentication on the default callback and API route for flexibility
   app.get("/", async (req: Request, res: Response, next: NextFunction) => {
+    // Log all query parameters for debugging
+    console.log("Root path accessed with query params:", req.query);
+    
     // Check if this is an eBay OAuth callback with authorization code
     if (req.query.code) {
       try {

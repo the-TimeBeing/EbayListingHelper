@@ -67,28 +67,44 @@ export class EbayService {
   }
 
   async getAccessToken(code: string): Promise<EbayOAuthResponse> {
+    console.log(`[EBAY SERVICE] Getting access token with code: ${code.substring(0, 10)}...`);
+    console.log(`[EBAY SERVICE] Using redirect URI: ${this.redirectUri}`);
+    
     const tokenUrl = `${this.getBaseUrl()}/identity/v1/oauth2/token`;
     const credentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
     
-    const response = await fetch(tokenUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': `Basic ${credentials}`
-      },
-      body: new URLSearchParams({
+    try {
+      console.log(`[EBAY SERVICE] Making token request to: ${tokenUrl}`);
+      const requestBody = new URLSearchParams({
         grant_type: 'authorization_code',
         code,
         redirect_uri: this.redirectUri
-      })
-    });
+      });
+      
+      console.log(`[EBAY SERVICE] Token request params: grant_type=authorization_code, redirect_uri=${this.redirectUri}, code=${code.substring(0, 10)}...`);
+      
+      const response = await fetch(tokenUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': `Basic ${credentials}`
+        },
+        body: requestBody
+      });
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Failed to get eBay access token: ${error}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[EBAY SERVICE] Token request failed with status ${response.status}: ${errorText}`);
+        throw new Error(`Failed to get eBay access token: ${errorText}`);
+      }
+
+      const tokenData = await response.json() as EbayOAuthResponse;
+      console.log(`[EBAY SERVICE] Successfully got access token, expires in ${tokenData.expires_in} seconds`);
+      return tokenData;
+    } catch (error) {
+      console.error(`[EBAY SERVICE] Exception in getAccessToken: ${error instanceof Error ? error.message : String(error)}`);
+      throw error;
     }
-
-    return await response.json() as EbayOAuthResponse;
   }
 
   async refreshAccessToken(refreshToken: string): Promise<EbayOAuthResponse> {
