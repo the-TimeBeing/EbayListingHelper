@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Camera, X, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -10,32 +10,19 @@ interface PhotoUploaderProps {
 }
 
 export default function PhotoUploader({ photos, setPhotos, maxPhotos }: PhotoUploaderProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Completely rewritten file upload handler
-  const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+  // Simple handleFileUpload with direct input element approach
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     
-    // Reset input value immediately to ensure it can be used again
-    const input = event.target;
-    const inputValue = input.value;
-    input.value = '';
-    
-    // No files selected
     if (!files || files.length === 0) {
       console.log("No files selected");
       return;
     }
 
     console.log("File upload triggered with", files.length, "files");
-    
-    // Check if already processing files
-    if (isProcessing) {
-      console.log("Already processing files, ignoring this selection");
-      return;
-    }
     
     // Check if adding new files would exceed the max
     if (photos.length + files.length > maxPhotos) {
@@ -49,84 +36,76 @@ export default function PhotoUploader({ photos, setPhotos, maxPhotos }: PhotoUpl
 
     setIsProcessing(true);
     
-    // Convert FileList to array and process in sequence
-    const filesArray = Array.from(files);
+    // Create a new array to collect all photos
     const newPhotos = [...photos];
+    let processed = 0;
     
-    // Process files one by one
-    const processNextFile = (index: number) => {
-      if (index >= filesArray.length) {
-        // All files processed
-        setPhotos(newPhotos);
-        setIsProcessing(false);
-        console.log("All files processed, photos array updated with", newPhotos.length, "photos");
-        return;
-      }
-      
-      const file = filesArray[index];
+    // Process each file
+    Array.from(files).forEach(file => {
       const reader = new FileReader();
       
       reader.onload = (e) => {
         if (e.target?.result) {
           newPhotos.push(e.target.result.toString());
-          // Process the next file
-          processNextFile(index + 1);
-        } else {
-          // Error reading file, move to next
-          console.error("Error reading file:", file.name);
-          processNextFile(index + 1);
+        }
+        
+        processed++;
+        if (processed === files.length) {
+          setPhotos(newPhotos);
+          setIsProcessing(false);
+          console.log("All files processed, photos array updated with", newPhotos.length, "photos");
         }
       };
       
       reader.onerror = () => {
-        console.error("FileReader error for file:", file.name);
-        processNextFile(index + 1);
+        console.error("Error reading file:", file.name);
+        processed++;
+        if (processed === files.length) {
+          setPhotos(newPhotos);
+          setIsProcessing(false);
+        }
       };
       
-      // Start reading the file
       reader.readAsDataURL(file);
-    };
-    
-    // Start processing files
-    processNextFile(0);
-  }, [photos, setPhotos, maxPhotos, toast, isProcessing]);
+    });
+  };
 
-  const removePhoto = useCallback((index: number) => {
+  const removePhoto = (index: number) => {
     const newPhotos = [...photos];
     newPhotos.splice(index, 1);
     setPhotos(newPhotos);
-  }, [photos, setPhotos]);
-
-  // Fixed version: Only trigger file selection
-  const triggerFileInput = useCallback(() => {
-    if (fileInputRef.current && !isProcessing) {
-      console.log("Triggering file input click");
-      fileInputRef.current.click();
-    } else if (isProcessing) {
-      console.log("Cannot trigger file input while processing files");
-      toast({
-        title: "Please wait",
-        description: "Still processing images...",
-        variant: "default"
-      });
-    }
-  }, [isProcessing, toast]);
+  };
 
   return (
     <div>
-      {photos.length === 0 ? (
-        // Empty state - big upload area
-        <div
-          className="block w-full h-40 border-2 border-dashed border-[#0064d2] rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 transition duration-300"
-          onClick={triggerFileInput}
-        >
+      {/* Empty state */}
+      {photos.length === 0 && (
+        <div className="block w-full h-40 border-2 border-dashed border-[#0064d2] rounded-lg flex flex-col items-center justify-center hover:bg-gray-100 transition duration-300">
           <Camera className="h-12 w-12 text-[#0064d2] mb-2" />
           <span className="text-[#0064d2] font-medium">
             {isProcessing ? "Processing..." : "Take photos or upload from gallery"}
           </span>
+          <input
+            type="file"
+            id="photo-upload-empty"
+            name="photo-upload-empty"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleFileUpload}
+            disabled={isProcessing}
+          />
+          <label 
+            htmlFor="photo-upload-empty" 
+            className="mt-3 px-4 py-2 bg-[#0064d2] text-white rounded cursor-pointer hover:bg-[#004fa3]"
+          >
+            Select Photos
+          </label>
         </div>
-      ) : (
-        // Grid view of photos with add button
+      )}
+      
+      {/* Photos grid */}
+      {photos.length > 0 && (
         <div className="mb-4">
           <div className="grid grid-cols-3 gap-2 mb-2">
             {photos.map((photo, index) => (
@@ -147,33 +126,35 @@ export default function PhotoUploader({ photos, setPhotos, maxPhotos }: PhotoUpl
             ))}
             
             {photos.length < maxPhotos && (
-              <div 
-                className={`aspect-square rounded-lg border border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:bg-gray-100 ${isProcessing ? 'opacity-50' : ''}`}
-                onClick={triggerFileInput}
-              >
+              <div className="aspect-square rounded-lg border border-dashed border-gray-300 flex flex-col items-center justify-center">
                 {isProcessing ? (
                   <div className="h-6 w-6 border-2 border-gray-500 border-t-transparent rounded-full animate-spin"></div>
                 ) : (
-                  <Plus className="h-6 w-6 text-gray-500" />
+                  <>
+                    <Plus className="h-6 w-6 text-gray-500 mb-2" />
+                    <input
+                      type="file"
+                      id="photo-upload-grid"
+                      name="photo-upload-grid"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={handleFileUpload}
+                      disabled={isProcessing}
+                    />
+                    <label 
+                      htmlFor="photo-upload-grid" 
+                      className="text-xs text-gray-600 cursor-pointer hover:text-gray-900"
+                    >
+                      Add more
+                    </label>
+                  </>
                 )}
               </div>
             )}
           </div>
         </div>
       )}
-      
-      {/* Hidden file input element - always kept at the component root level */}
-      <input
-        type="file"
-        id="photo-upload"
-        accept="image/*"
-        capture="environment"
-        multiple
-        className="hidden"
-        onChange={handleFileUpload}
-        ref={fileInputRef}
-        disabled={isProcessing}
-      />
     </div>
   );
 }
