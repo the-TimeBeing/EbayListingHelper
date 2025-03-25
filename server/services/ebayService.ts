@@ -17,8 +17,8 @@ export class EbayService {
     const deployedUrl = process.env.REPLIT_DEPLOYMENT_DOMAIN || '';
     // Always use the root URL for eBay callback since that's where we handle it
     const defaultRedirectUrl = deployedUrl 
-      ? `https://${deployedUrl}`
-      : 'http://localhost:5000';
+      ? `https://${deployedUrl}/`
+      : 'http://localhost:5000/';
     
     // Use root path as eBay callback handler
     this.redirectUri = process.env.EBAY_REDIRECT_URI || defaultRedirectUrl;
