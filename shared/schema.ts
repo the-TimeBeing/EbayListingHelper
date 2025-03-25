@@ -30,6 +30,9 @@ export const listings = pgTable("listings", {
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
+  ebayToken: true,
+  ebayRefreshToken: true,
+  ebayTokenExpiry: true,
 });
 
 export const insertListingSchema = createInsertSchema(listings).omit({

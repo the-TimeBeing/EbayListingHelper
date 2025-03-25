@@ -11,12 +11,22 @@ export class EbayService {
   constructor() {
     this.clientId = process.env.EBAY_CLIENT_ID || '';
     this.clientSecret = process.env.EBAY_CLIENT_SECRET || '';
-    this.redirectUri = process.env.EBAY_REDIRECT_URI || '';
+    
+    // Use the current domain for redirect URI if not provided
+    // This ensures it works on Replit and other environments
+    const deployedUrl = process.env.REPLIT_DEPLOYMENT_DOMAIN || '';
+    const defaultRedirectUrl = deployedUrl 
+      ? `https://${deployedUrl}/api/auth/ebay/callback`
+      : 'https://ai-powered-ebay-listing-assistant.replit.app/api/auth/ebay/callback';
+    
+    this.redirectUri = process.env.EBAY_REDIRECT_URI || defaultRedirectUrl;
     this.sandboxMode = process.env.EBAY_SANDBOX_MODE === 'true';
 
     if (!this.clientId || !this.clientSecret) {
       console.error('eBay API credentials are missing');
     }
+    
+    console.log(`[EBAY SERVICE] Initialized with redirect URI: ${this.redirectUri}`);
   }
 
   getBaseUrl(): string {

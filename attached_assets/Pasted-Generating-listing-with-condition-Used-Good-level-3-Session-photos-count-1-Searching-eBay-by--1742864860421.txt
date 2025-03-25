@@ -1,0 +1,40 @@
+Generating listing with condition: Used - Good level: 3
+Session photos count: 1
+Searching eBay by image...
+[EBAY SERVICE] Performing real eBay image search
+[EBAY SERVICE] Ensuring valid token for user ID: 1
+[EBAY SERVICE] User not found with ID: 1
+[EBAY SERVICE] Error in ensureValidToken: Error: User not found
+    at EbayService.ensureValidToken (/home/runner/workspace/server/services/ebayService.ts:108:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async EbayService.searchByImage (/home/runner/workspace/server/services/ebayService.ts:155:27)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:332:30)
+[EBAY SERVICE] Error in searchByImage: Error: No valid eBay token available. Please authenticate with eBay first.
+    at EbayService.ensureValidToken (/home/runner/workspace/server/services/ebayService.ts:146:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async EbayService.searchByImage (/home/runner/workspace/server/services/ebayService.ts:155:27)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:332:30)
+Found 1 similar items through eBay image search
+Searching for sold items with keywords: "Fallback Product (API"
+[EBAY SERVICE] Getting sold items for search: "Fallback Product (API"
+[EBAY SERVICE] Performing real eBay search for sold items
+[EBAY SERVICE] Ensuring valid token for user ID: 1
+[EBAY SERVICE] User not found with ID: 1
+[EBAY SERVICE] Error in ensureValidToken: Error: User not found
+    at EbayService.ensureValidToken (/home/runner/workspace/server/services/ebayService.ts:108:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async EbayService.getSoldItems (/home/runner/workspace/server/services/ebayService.ts:230:27)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:341:23)
+[EBAY SERVICE] Error in getSoldItems: Error: No valid eBay token available. Please authenticate with eBay first.
+    at EbayService.ensureValidToken (/home/runner/workspace/server/services/ebayService.ts:146:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async EbayService.getSoldItems (/home/runner/workspace/server/services/ebayService.ts:230:27)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:341:23)
+Found 1 sold items on eBay
+Generating product details from eBay search results
+Generating listing content with OpenAI...
+Condition: Used - Good, Level: 3
+Product details length: 309 characters
+Successfully generated listing content with OpenAI
+12:58:37 AM [express] POST /api/listings/generate 200 in 4183ms :: {"success":true,"listingId":1}
+12:58:42 AM [express] GET /api/auth/status 200 in 101ms :: {"isAuthenticated":true,"hasEbayToken":tru…

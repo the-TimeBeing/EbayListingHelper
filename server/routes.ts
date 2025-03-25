@@ -62,82 +62,140 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Test authentication endpoint with HTML page for client-side redirect
-  app.get("/api/auth/test-login", (req: Request, res: Response) => {
-    // Mock a successful authentication for testing purposes
-    req.session.userId = 1;
-    req.session.ebayToken = "mock-token-for-testing";
-    req.session.ebayRefreshToken = "mock-refresh-token";
-    req.session.ebayTokenExpiry = new Date(Date.now() + 3600 * 1000); // 1 hour from now
-    
-    console.log("Test login successful, session:", {
-      userId: req.session.userId,
-      hasToken: !!req.session.ebayToken
-    });
-    
-    // Save the session and send a redirect page
-    req.session.save((err) => {
-      if (err) {
-        console.error("Error saving session:", err);
-        return res.status(500).json({ success: false, error: "Session error" });
+  app.get("/api/auth/test-login", async (req: Request, res: Response) => {
+    try {
+      // Check if we already have a test user
+      let user = await storage.getUserByUsername("test_user");
+      
+      if (!user) {
+        // Create a test user with eBay tokens if it doesn't exist
+        console.log("Creating test user in storage");
+        user = await storage.createUser({
+          username: "test_user",
+          password: "test_password",
+          ebayToken: "mock-token-for-testing",
+          ebayRefreshToken: "mock-refresh-token",
+          ebayTokenExpiry: new Date(Date.now() + 3600 * 1000)
+        });
+      } else {
+        // Update tokens for the existing test user
+        console.log("Updating tokens for existing test user");
+        user = await storage.updateUserEbayTokens(
+          user.id,
+          "mock-token-for-testing",
+          "mock-refresh-token",
+          new Date(Date.now() + 3600 * 1000)
+        );
       }
       
-      // Return HTML page with JavaScript redirect instead of JSON
-      return res.send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>Redirecting...</title>
-          <meta http-equiv="refresh" content="1;url=/direct-photos">
-          <style>
-            body { font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f7f7f7; }
-            .container { text-align: center; padding: 2rem; max-width: 500px; }
-            h2 { color: #0064d2; margin-bottom: 1rem; }
-            p { color: #666; margin-bottom: 2rem; }
-            .loader { border: 5px solid #f3f3f3; border-top: 5px solid #0064d2; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 2rem; }
-            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="loader"></div>
-            <h2>Login Successful!</h2>
-            <p>Redirecting you to the photo upload page...</p>
-          </div>
-          <script>
-            // JavaScript redirect as fallback
-            setTimeout(function() {
-              window.location.href = '/direct-photos';
-            }, 1000);
-          </script>
-        </body>
-        </html>
-      `);
-    });
+      // Set session variables
+      req.session.userId = user.id;
+      req.session.ebayToken = user.ebayToken;
+      req.session.ebayRefreshToken = user.ebayRefreshToken;
+      req.session.ebayTokenExpiry = user.ebayTokenExpiry;
+      
+      console.log("Test login successful, session:", {
+        userId: req.session.userId,
+        hasToken: !!req.session.ebayToken
+      });
+      
+      // Save the session and send a redirect page
+      req.session.save((err) => {
+        if (err) {
+          console.error("Error saving session:", err);
+          return res.status(500).json({ success: false, error: "Session error" });
+        }
+        
+        // Return HTML page with JavaScript redirect instead of JSON
+        return res.send(`
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Redirecting...</title>
+            <meta http-equiv="refresh" content="1;url=/direct-photos">
+            <style>
+              body { font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f7f7f7; }
+              .container { text-align: center; padding: 2rem; max-width: 500px; }
+              h2 { color: #0064d2; margin-bottom: 1rem; }
+              p { color: #666; margin-bottom: 2rem; }
+              .loader { border: 5px solid #f3f3f3; border-top: 5px solid #0064d2; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 2rem; }
+              @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="loader"></div>
+              <h2>Login Successful!</h2>
+              <p>Redirecting you to the photo upload page...</p>
+            </div>
+            <script>
+              // JavaScript redirect as fallback
+              setTimeout(function() {
+                window.location.href = '/direct-photos';
+              }, 1000);
+            </script>
+          </body>
+          </html>
+        `);
+      });
+    } catch (error) {
+      console.error("Test login error:", error);
+      res.status(500).send("Test login failed");
+    }
   });
   
   // Test authentication endpoint with redirect (for simpler client implementation)
-  app.get("/api/auth/test-login-redirect", (req: Request, res: Response) => {
-    // Mock a successful authentication for testing purposes
-    req.session.userId = 1;
-    req.session.ebayToken = "mock-token-for-testing";
-    req.session.ebayRefreshToken = "mock-refresh-token";
-    req.session.ebayTokenExpiry = new Date(Date.now() + 3600 * 1000); // 1 hour from now
-    
-    console.log("Test login (redirect) successful, session:", {
-      userId: req.session.userId,
-      hasToken: !!req.session.ebayToken
-    });
-    
-    // Save the session and redirect directly to /photos
-    req.session.save((err) => {
-      if (err) {
-        console.error("Error saving session:", err);
-        return res.status(500).send("Session error");
+  app.get("/api/auth/test-login-redirect", async (req: Request, res: Response) => {
+    try {
+      // Check if we already have a test user
+      let user = await storage.getUserByUsername("test_user");
+      
+      if (!user) {
+        // Create a test user with eBay tokens if it doesn't exist
+        console.log("Creating test user in storage");
+        user = await storage.createUser({
+          username: "test_user",
+          password: "test_password",
+          ebayToken: "mock-token-for-testing",
+          ebayRefreshToken: "mock-refresh-token",
+          ebayTokenExpiry: new Date(Date.now() + 3600 * 1000)
+        });
+      } else {
+        // Update tokens for the existing test user
+        console.log("Updating tokens for existing test user");
+        user = await storage.updateUserEbayTokens(
+          user.id,
+          "mock-token-for-testing",
+          "mock-refresh-token",
+          new Date(Date.now() + 3600 * 1000)
+        );
       }
       
-      // Directly redirect to our direct photos page that bypasses auth checks
-      res.redirect('/direct-photos');
-    });
+      // Set session variables
+      req.session.userId = user.id;
+      req.session.ebayToken = user.ebayToken;
+      req.session.ebayRefreshToken = user.ebayRefreshToken;
+      req.session.ebayTokenExpiry = user.ebayTokenExpiry;
+      
+      console.log("Test login (redirect) successful, session:", {
+        userId: req.session.userId,
+        hasToken: !!req.session.ebayToken
+      });
+      
+      // Save the session and redirect
+      req.session.save((err) => {
+        if (err) {
+          console.error("Error saving session:", err);
+          return res.status(500).send("Session error");
+        }
+        
+        // Directly redirect to our direct photos page that bypasses auth checks
+        res.redirect('/direct-photos');
+      });
+    } catch (error) {
+      console.error("Test login error:", error);
+      res.status(500).send("Test login failed");
+    }
   });
 
   app.get("/api/auth/ebay/callback", async (req: Request, res: Response) => {
