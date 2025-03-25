@@ -56,7 +56,8 @@ export class EbayService {
     authUrl.searchParams.append('client_id', this.clientId);
     authUrl.searchParams.append('response_type', 'code');
     authUrl.searchParams.append('redirect_uri', this.redirectUri);
-    authUrl.searchParams.append('scope', scopes.join(' '));
+    authUrl.searchParams.append('scope', encodeURIComponent(scopes.join(' ')));
+    authUrl.searchParams.append('prompt', 'login');
     
     return authUrl.toString();
   }
