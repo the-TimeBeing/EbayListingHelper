@@ -15,12 +15,14 @@ export class EbayService {
     // Use the current domain for redirect URI if not provided
     // This ensures it works on Replit and other environments
     const deployedUrl = process.env.REPLIT_DEPLOYMENT_DOMAIN || '';
-    // eBay OAuth requires a redirect to the EXACT URL registered with the app
-    // So we must use the root URL with no trailing path or additional segments
+    
+    // IMPORTANT: eBay OAuth requires a redirect to the EXACT URL registered with the app
+    // So we must use the root URL with no path segments at all
     const defaultRedirectUrl = `https://${deployedUrl || 'pixly.replit.app'}`;
     
-    // Use root path as eBay callback handler, ensure no trailing slash
-    this.redirectUri = (process.env.EBAY_REDIRECT_URI || defaultRedirectUrl).replace(/\/$/, '');
+    // Override any stored redirect URI with the root URL for now
+    // This is critical for the eBay OAuth flow to work properly in production
+    this.redirectUri = defaultRedirectUrl.replace(/\/$/, '');
     console.log(`[EBAY SERVICE] Using callback URL: ${this.redirectUri}`);
     this.sandboxMode = process.env.EBAY_SANDBOX_MODE === 'true';
 
