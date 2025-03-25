@@ -6,7 +6,7 @@ import { useLocation } from "wouter";
 import { AuthContext } from "@/context/AuthContext";
 
 export default function SignInPage() {
-  const { signInWithEbay, checkAuthStatus } = useAuth();
+  const { signInWithEbay, getTestLoginUrl, checkAuthStatus } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isTestLoading, setIsTestLoading] = useState(false);
   const [_, setLocation] = useLocation();
@@ -15,6 +15,7 @@ export default function SignInPage() {
   const handleSignIn = async () => {
     try {
       setIsLoading(true);
+      // Use the real eBay OAuth flow
       await signInWithEbay();
     } catch (error) {
       console.error("Sign in error:", error);
@@ -26,8 +27,9 @@ export default function SignInPage() {
     try {
       setIsTestLoading(true);
       
-      // Make a much simpler test login that just uses window.location
-      window.location.href = "/api/auth/test-login-redirect";
+      // Get the test login URL from the API
+      const testLoginUrl = await getTestLoginUrl();
+      window.location.href = testLoginUrl + "-redirect"; // Use the redirect version
     } catch (error) {
       console.error("Test login error:", error);
       setIsTestLoading(false);

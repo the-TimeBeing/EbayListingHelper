@@ -148,17 +148,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
         throw new Error("Invalid authorization code");
       }
 
+      // Get eBay OAuth tokens
       const tokenData = await ebayService.getAccessToken(code);
       
-      // In a real app, you'd associate this with a user account
-      // For now, we'll just store it in the session
+      // Generate a random username for first-time users
+      let userId = 0;
+      let user;
+      
+      // Create or find the user with these tokens
+      if (!req.session.userId) {
+        // This is a new user, create one with the eBay tokens
+        const username = `ebay_user_${Date.now()}`;
+        const insertUser = {
+          username: username,
+          // A fake password is required by our schema, but we won't use it for eBay auth
+          password: `ebay_pass_${Math.random().toString(36).substring(2, 15)}`, 
+          ebayToken: tokenData.access_token,
+          ebayRefreshToken: tokenData.refresh_token,
+          ebayTokenExpiry: new Date(Date.now() + tokenData.expires_in * 1000)
+        };
+        
+        user = await storage.createUser(insertUser);
+        userId = user.id;
+        console.log(`Created new user: ${username} with ID: ${userId}`);
+      } else {
+        // Existing user, update their tokens
+        userId = req.session.userId;
+        user = await storage.getUser(userId);
+        
+        if (!user) {
+          throw new Error("User not found");
+        }
+        
+        user = await storage.updateUserEbayTokens(
+          userId,
+          tokenData.access_token,
+          tokenData.refresh_token,
+          new Date(Date.now() + tokenData.expires_in * 1000)
+        );
+        
+        console.log(`Updated tokens for user ID: ${userId}`);
+      }
+      
+      // Store everything in the session
+      req.session.userId = userId;
       req.session.ebayToken = tokenData.access_token;
       req.session.ebayRefreshToken = tokenData.refresh_token;
       req.session.ebayTokenExpiry = new Date(Date.now() + tokenData.expires_in * 1000);
-      req.session.userId = 1; // Mock user ID for demo
-      
-      // For a real application with a database:
-      // await storage.updateUserEbayTokens(userId, tokenData.access_token, tokenData.refresh_token, new Date(Date.now() + tokenData.expires_in * 1000));
 
       // Save the session explicitly
       req.session.save((err) => {
@@ -172,7 +208,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("eBay auth error:", error);
-      res.status(500).json({ message: "Authentication failed", error: error.message });
+      res.status(500).json({ message: "Authentication failed", error: error instanceof Error ? error.message : String(error) });
     }
   });
 
@@ -509,9 +545,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Push listing to eBay as draft
   app.post("/api/listings/:id/push-to-ebay", async (req: Request, res: Response) => {
-    // Check for authentication, but don't redirect or block - just set user ID if missing
+    // This endpoint requires authentication
     if (!req.session.userId) {
-      req.session.userId = 1; // Set default user ID for test mode
+      return res.status(401).json({ message: "Authentication required" });
     }
     
     try {
@@ -533,11 +569,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
 
-      // In a real implementation, this would call ebayService.createDraftListing
-      // const ebayDraftId = await ebayService.createDraftListing(req.session.userId, listing);
-      const ebayDraftId = `draft-${Date.now()}`;
+      console.log(`Attempting to push listing ${listingId} to eBay for user ${req.session.userId}`);
       
-      console.log(`Creating draft eBay listing with ID: ${ebayDraftId}`);
+      // Check if we have all required data for an eBay listing
+      if (!listing.title || !listing.description || !listing.price || !listing.condition) {
+        return res.status(400).json({ message: "Listing is missing required fields" });
+      }
+      
+      // Format the data as eBay API expects it
+      const ebayListingData = {
+        inventory_item: {
+          product: {
+            title: listing.title,
+            description: listing.description,
+            aspects: {
+              "Condition": [listing.condition],
+              ...Object.fromEntries(
+                (listing.itemSpecifics || []).map(spec => {
+                  const key = Object.keys(spec)[0];
+                  return [key, [spec[key]]];
+                })
+              )
+            },
+            imageUrls: listing.images || []
+          },
+          condition: listing.condition,
+          conditionDescription: listing.conditionDescription || "",
+          availability: {
+            shipToLocationAvailability: {
+              quantity: 1
+            }
+          },
+          packageWeightAndSize: {
+            weight: {
+              value: 1,
+              unit: "POUND"
+            }
+          }
+        },
+        offer: {
+          pricingSummary: {
+            price: {
+              value: parseFloat(listing.price),
+              currency: "USD"
+            }
+          }
+        }
+      };
+      
+      // Now send the data to eBay
+      const ebayDraftId = await ebayService.createDraftListing(req.session.userId, ebayListingData);
+        
+      console.log(`Successfully created eBay draft listing with ID: ${ebayDraftId}`);
 
       // Update the listing with the eBay draft ID
       const updatedListing = await storage.updateListing(listingId, {
