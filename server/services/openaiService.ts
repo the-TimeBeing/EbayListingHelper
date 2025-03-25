@@ -1,23 +1,33 @@
 import OpenAI from "openai";
-import { ChatGPTListingContent } from "@shared/types";
+import { ChatGPTListingContent, EbayItemSummary, EbaySoldItem } from "@shared/types";
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const MODEL = "gpt-4o";
 
 export class OpenAIService {
   private openai: OpenAI;
+  private useOpenAI: boolean;
 
   constructor() {
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY || ""
-    });
-
-    if (!process.env.OPENAI_API_KEY) {
-      console.error("OpenAI API key is missing");
+    this.useOpenAI = !!process.env.OPENAI_API_KEY;
+    
+    if (this.useOpenAI) {
+      this.openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY || ""
+      });
+      console.log("OpenAI service initialized with API key");
+    } else {
+      console.log("OpenAI API key is missing, using fallback methods");
     }
   }
 
   async analyzeImage(base64Image: string): Promise<string> {
+    // Skip OpenAI analysis if key is missing or if explicitly set to skip
+    if (!this.useOpenAI) {
+      console.log("Skipping OpenAI image analysis, using basic image description");
+      return "Product image uploaded by user. This will be used for the eBay listing.";
+    }
+    
     try {
       // Clean up the base64 string if it includes data URL prefix
       let processedBase64 = base64Image;
@@ -62,15 +72,117 @@ export class OpenAIService {
           data: error.response.data
         });
       }
-      throw new Error(`Failed to analyze image: ${error.message || "Unknown error"}`);
+      return "Failed to analyze image. Product will be listed based on eBay search results.";
     }
+  }
+
+  // New method to generate product details from eBay search results without requiring OpenAI
+  generateProductDetailsFromEbayResults(
+    imageSearchResults: EbayItemSummary[],
+    soldItems: EbaySoldItem[]
+  ): string {
+    console.log("Generating product details from eBay search results");
+    
+    // Combine product information from image search results
+    let details = "Product Details:\n\n";
+    
+    // Add information from image search results
+    if (imageSearchResults && imageSearchResults.length > 0) {
+      const mainItem = imageSearchResults[0];
+      details += `Title: ${mainItem.title || 'Unknown'}\n`;
+      details += `Category: ${mainItem.categories?.map(c => c.categoryName).join(', ') || 'Uncategorized'}\n`;
+      details += `Current Market Price: ${mainItem.price?.value || 'Unknown'} ${mainItem.price?.currency || 'USD'}\n\n`;
+    } else {
+      details += "No similar items found in image search.\n\n";
+    }
+    
+    // Add information from sold items
+    if (soldItems && soldItems.length > 0) {
+      details += "Recent Sold Items:\n";
+      
+      // Calculate average selling price
+      const prices = soldItems
+        .filter(item => item.soldPrice?.value)
+        .map(item => parseFloat(item.soldPrice.value));
+      
+      if (prices.length > 0) {
+        const avgPrice = prices.reduce((sum, price) => sum + price, 0) / prices.length;
+        details += `Average Selling Price: $${avgPrice.toFixed(2)}\n`;
+        
+        // Find min and max prices
+        const minPrice = Math.min(...prices);
+        const maxPrice = Math.max(...prices);
+        details += `Price Range: $${minPrice.toFixed(2)} - $${maxPrice.toFixed(2)}\n\n`;
+      }
+      
+      // Add some details from the first few sold items
+      soldItems.slice(0, 3).forEach((item, index) => {
+        details += `Similar Item ${index + 1}: ${item.title}\n`;
+        if (item.soldPrice) {
+          details += `Sold for: ${item.soldPrice.value} ${item.soldPrice.currency}\n`;
+        }
+        if (item.soldDate) {
+          details += `Date sold: ${item.soldDate}\n`;
+        }
+        details += `\n`;
+      });
+    } else {
+      details += "No recent sold items found.\n";
+    }
+    
+    return details;
   }
 
   async generateListingContent(
     productDetails: string,
     condition: string,
-    conditionLevel: number
+    conditionLevel: number,
+    useOpenAI: boolean = true
   ): Promise<ChatGPTListingContent> {
+    // If OpenAI is not available or useOpenAI is false, generate a simple listing
+    if (!this.useOpenAI || !useOpenAI) {
+      console.log("Generating basic listing content without OpenAI");
+      
+      // Extract a title from the product details
+      let title = "Product Listing";
+      const titleMatch = productDetails.match(/Title: (.*?)(\n|$)/);
+      if (titleMatch && titleMatch[1]) {
+        title = titleMatch[1].substring(0, 80); // Keep under 80 chars
+      }
+      
+      // Create a basic description from the product details
+      const description = `
+${productDetails}
+
+This item is being sold in ${condition.toLowerCase()} condition.
+      `.trim();
+      
+      // Generate a condition description based on the level
+      let conditionDescription = "";
+      switch(conditionLevel) {
+        case 1:
+          conditionDescription = "Item shows significant wear and may have functional issues.";
+          break;
+        case 2:
+          conditionDescription = "Item shows moderate wear but remains functional.";
+          break;
+        case 3:
+          conditionDescription = "Item shows some signs of use but remains in good condition.";
+          break;
+        case 4:
+          conditionDescription = "Item is in very good condition with minimal signs of use.";
+          break;
+        case 5:
+          conditionDescription = "Item is like new with no visible signs of wear.";
+          break;
+        default:
+          conditionDescription = `Item is in ${condition.toLowerCase()} condition.`;
+      }
+      
+      return { title, description, conditionDescription };
+    }
+    
+    // Otherwise use OpenAI for better quality
     try {
       console.log("Generating listing content with OpenAI...");
       console.log(`Condition: ${condition}, Level: ${conditionLevel}`);
@@ -120,15 +232,8 @@ Format your response as a JSON object with the following fields:
     } catch (error: any) {
       console.error("Error generating listing content with OpenAI:", error);
       
-      // More detailed error logging
-      if (error.response) {
-        console.error("OpenAI API Error Response:", {
-          status: error.response.status,
-          data: error.response.data
-        });
-      }
-      
-      throw new Error(`Failed to generate listing content: ${error.message || "Unknown error"}`);
+      // Fallback to the basic method on error
+      return this.generateListingContent(productDetails, condition, conditionLevel, false);
     }
   }
 }
