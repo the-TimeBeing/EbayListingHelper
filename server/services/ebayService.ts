@@ -19,16 +19,9 @@ export class EbayService {
       ? `https://${deployedUrl}`
       : 'https://ai-powered-ebay-listing-assistant.replit.app';
     
-    // Create a special debug callback path to help diagnose issues
-    // We'll handle both the root path and this special debug path
-    const useDebugCallback = true; // For troubleshooting eBay OAuth issues
-    
-    if (useDebugCallback) {
-      this.redirectUri = process.env.EBAY_REDIRECT_URI || `${defaultRedirectUrl}/debug-ebay-callback`;
-      console.log(`[EBAY SERVICE] Using debug callback URL: ${this.redirectUri}`);
-    } else {
-      this.redirectUri = process.env.EBAY_REDIRECT_URI || defaultRedirectUrl;
-    }
+    // Use root path for OAuth callback
+    this.redirectUri = process.env.EBAY_REDIRECT_URI || defaultRedirectUrl;
+    console.log(`[EBAY SERVICE] Using callback URL: ${this.redirectUri}`);
     this.sandboxMode = process.env.EBAY_SANDBOX_MODE === 'true';
 
     if (!this.clientId || !this.clientSecret) {
