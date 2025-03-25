@@ -17,11 +17,11 @@ export class EbayService {
     const deployedUrl = process.env.REPLIT_DEPLOYMENT_DOMAIN || '';
     // Always use the root URL for eBay callback
     const defaultRedirectUrl = deployedUrl 
-      ? `https://${deployedUrl}/`
-      : 'http://localhost:5000/';
+      ? `https://${deployedUrl}`
+      : 'http://localhost:5000';
     
-    // Use root path as eBay callback handler - remove trailing slash to match eBay config
-    this.redirectUri = (process.env.EBAY_REDIRECT_URI || defaultRedirectUrl).replace(/\/$/, '');
+    // Use root path as eBay callback handler
+    this.redirectUri = process.env.EBAY_REDIRECT_URI || defaultRedirectUrl;
     console.log(`[EBAY SERVICE] Using callback URL: ${this.redirectUri}`);
     this.sandboxMode = process.env.EBAY_SANDBOX_MODE === 'true';
 
