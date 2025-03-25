@@ -50,10 +50,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // eBay authentication
   app.get("/api/auth/ebay/url", (req: Request, res: Response) => {
-    // For development/testing, we'll provide both the real eBay URL and a local test auth URL
+    // Return the actual eBay OAuth URL
     const authUrl = ebayService.getOAuthUrl();
+    res.json({ url: authUrl });
+  });
+  
+  // Separate endpoint for test login
+  app.get("/api/auth/test-login-url", (req: Request, res: Response) => {
     const testAuthUrl = "/api/auth/test-login"; // Local test auth endpoint
-    res.json({ url: process.env.NODE_ENV === 'production' ? authUrl : testAuthUrl });
+    res.json({ url: testAuthUrl });
   });
   
   // Test authentication endpoint with HTML page for client-side redirect

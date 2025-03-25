@@ -101,12 +101,6 @@ export class EbayService {
   async ensureValidToken(userId: number): Promise<string> {
     console.log(`[EBAY SERVICE] Ensuring valid token for user ID: ${userId}`);
     
-    // For test mode, we'll use a fake token that's always valid
-    if (userId === 1) {
-      console.log('[EBAY SERVICE] Using test mode fake token');
-      return 'TEST_TOKEN_' + Date.now();
-    }
-    
     try {
       const user = await storage.getUser(userId);
       if (!user) {
@@ -149,26 +143,13 @@ export class EbayService {
       return user.ebayToken;
     } catch (error) {
       console.error('[EBAY SERVICE] Error in ensureValidToken:', error);
-      // For demo purposes, return a fake token if there's any error
-      return 'FALLBACK_TEST_TOKEN_' + Date.now();
+      throw new Error('No valid eBay token available. Please authenticate with eBay first.');
     }
   }
 
   async searchByImage(userId: number, imageBase64: string): Promise<EbayItemSummary[]> {
-    // For test mode, return mock data to avoid API calls
-    if (userId === 1) {
-      console.log('[EBAY SERVICE] Using test mode mock data for image search');
-      return [
-        {
-          itemId: 'test-123456',
-          title: 'Test Product from Image Search',
-          price: { value: '49.99', currency: 'USD' },
-          image: { imageUrl: 'https://example.com/test.jpg' },
-          itemWebUrl: 'https://ebay.com/test',
-          categories: [{ categoryId: '123', categoryName: 'Electronics' }]
-        }
-      ];
-    }
+    // No more test mode shortcut - always make real API calls
+    console.log('[EBAY SERVICE] Performing real eBay image search');
     
     try {
       const accessToken = await this.ensureValidToken(userId);
@@ -242,32 +223,8 @@ export class EbayService {
   async getSoldItems(userId: number, searchTerms: string): Promise<EbaySoldItem[]> {
     console.log(`[EBAY SERVICE] Getting sold items for search: "${searchTerms}"`);
     
-    // For test mode, return mock data to avoid API calls
-    if (userId === 1) {
-      console.log('[EBAY SERVICE] Using test mode mock data for sold items');
-      return [
-        {
-          itemId: 'sold-123456',
-          title: 'Test Sold Product - ' + searchTerms,
-          price: { value: '59.99', currency: 'USD' },
-          soldPrice: { value: '53.49', currency: 'USD' },
-          soldDate: new Date().toISOString(),
-          image: { imageUrl: 'https://example.com/test-sold.jpg' },
-          itemWebUrl: 'https://ebay.com/sold-item',
-          categories: [{ categoryId: '789', categoryName: 'Fashion' }]
-        },
-        {
-          itemId: 'sold-234567',
-          title: 'Another Sold ' + searchTerms + ' Product',
-          price: { value: '79.99', currency: 'USD' },
-          soldPrice: { value: '68.95', currency: 'USD' },
-          soldDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days ago
-          image: { imageUrl: 'https://example.com/another-sold.jpg' },
-          itemWebUrl: 'https://ebay.com/another-sold',
-          categories: [{ categoryId: '123', categoryName: 'Electronics' }]
-        }
-      ];
-    }
+    // No more test mode shortcuts - always make real API calls
+    console.log('[EBAY SERVICE] Performing real eBay search for sold items');
     
     try {
       const accessToken = await this.ensureValidToken(userId);

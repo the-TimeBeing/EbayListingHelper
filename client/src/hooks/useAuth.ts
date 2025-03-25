@@ -26,6 +26,22 @@ export function useAuth() {
       throw new Error("Failed to get eBay authorization URL");
     }
   }, []);
+  
+  const getTestLoginUrl = useCallback(async () => {
+    try {
+      const res = await fetch("/api/auth/test-login-url", {
+        cache: "no-store",
+        headers: {
+          "Cache-Control": "no-cache"
+        }
+      });
+      const data = await res.json();
+      return data.url;
+    } catch (error) {
+      console.error("Error getting test login URL:", error);
+      throw new Error("Failed to get test login URL");
+    }
+  }, []);
 
   const signInWithEbay = useCallback(async () => {
     try {
@@ -69,6 +85,7 @@ export function useAuth() {
     isLoading: authContext.isLoading,
     checkAuthStatus,
     signInWithEbay,
+    getTestLoginUrl,
     signOut
   };
 }
