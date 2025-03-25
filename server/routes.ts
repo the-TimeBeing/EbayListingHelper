@@ -873,17 +873,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       });
     } catch (error) {
-      console.error("Listing generation error:", error);
+      console.error("Listing generation error:", {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        step: req.session.processingProgress?.currentStep,
+        userId: req.session.userId,
+        hasPhotos: !!req.session.photos,
+        photoCount: req.session.photos?.length
+      });
       
       req.session.processingProgress = {
         status: 'error',
         currentStep: 'error',
         stepsCompleted: 0,
         totalSteps: 5,
-        error: error.message || "Unknown error during listing generation"
+        error: error instanceof Error ? error.message : String(error)
       };
       
-      res.status(500).json({ message: "Failed to generate listing", error: error.message });
+      res.status(500).json({ 
+        message: "Failed to generate listing",
+        error: error instanceof Error ? error.message : String(error),
+        step: req.session.processingProgress?.currentStep
+      });
     }
   });
 

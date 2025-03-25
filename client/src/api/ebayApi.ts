@@ -27,8 +27,13 @@ export async function generateListing(condition: string, conditionLevel: number)
       conditionLevel
     });
   } catch (error) {
-    console.error('Error generating listing:', error);
-    throw new Error('Failed to generate listing');
+    console.error('Error generating listing:', {
+      error,
+      response: error.response,
+      status: error.status,
+      data: error.response?.data
+    });
+    throw error;
   }
 }
 
