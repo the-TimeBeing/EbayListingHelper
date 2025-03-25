@@ -198,6 +198,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Special test route to confirm eBay OAuth callback is working
+  app.get("/debug-ebay-callback", (req: Request, res: Response) => {
+    console.log("Debug eBay callback route accessed with query params:", req.query);
+    
+    // Show a simple HTML response for the user
+    res.send(`
+      <html>
+        <head>
+          <title>eBay Auth Debug</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 2rem; line-height: 1.6; }
+            h1 { color: #0064D2; }
+            pre { background: #f5f5f5; padding: 1rem; border-radius: 4px; overflow: auto; }
+            .success { color: green; }
+            .error { color: red; }
+          </style>
+        </head>
+        <body>
+          <h1>eBay OAuth Debug Page</h1>
+          <p>This page helps diagnose eBay authentication issues.</p>
+          
+          <h2>Query Parameters:</h2>
+          <pre>${JSON.stringify(req.query, null, 2)}</pre>
+          
+          <div>
+            ${req.query.code 
+              ? `<p class="success">✅ Authorization code received: ${req.query.code.toString().substring(0, 10)}...</p>` 
+              : `<p class="error">❌ No authorization code in the request</p>`}
+          </div>
+          
+          <p>Return to <a href="/">home page</a></p>
+        </body>
+      </html>
+    `);
+  });
+
   // Handle eBay authentication on the default callback and API route for flexibility
   app.get("/", async (req: Request, res: Response, next: NextFunction) => {
     // Log all query parameters for debugging
