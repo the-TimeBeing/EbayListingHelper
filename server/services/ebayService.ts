@@ -15,10 +15,8 @@ export class EbayService {
     // Use the current domain for redirect URI if not provided
     // This ensures it works on Replit and other environments
     const deployedUrl = process.env.REPLIT_DEPLOYMENT_DOMAIN || '';
-    // Always use the root URL for eBay callback - Replit domain or localhost
-    const defaultRedirectUrl = deployedUrl 
-      ? `https://${deployedUrl}`
-      : 'http://0.0.0.0:5000';
+    // Always use the HTTPS URL for eBay callback 
+    const defaultRedirectUrl = `https://${deployedUrl || 'pixly.replit.app'}`;
     
     // Use root path as eBay callback handler, ensure no trailing slash
     this.redirectUri = (process.env.EBAY_REDIRECT_URI || defaultRedirectUrl).replace(/\/$/, '');
