@@ -22,15 +22,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         checkPeriod: 86400000 // 24 hours
       }),
       secret: process.env.SESSION_SECRET || 'ebay-listing-assistant-secret',
-      resave: false,
-      saveUninitialized: false,
+      resave: true, // Changed to true to ensure session is saved
+      saveUninitialized: true, // Changed to true to ensure new sessions are saved
       cookie: {
-        secure: process.env.NODE_ENV === 'production',
+        secure: false, // Set to false to work in all environments
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
       }
     })
   );
+  
+  // Debug middleware to track session consistency
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    // Ignore static asset requests
+    if (!req.path.startsWith('/api') && !req.path === '/') {
+      return next();
+    }
+    
+    // Log session data for debugging
+    console.log(`Request to ${req.path} | Session ID: ${req.session.id} | User ID: ${req.session.userId || 'none'} | Has Photos: ${req.session.photos ? 'yes' : 'no'}`);
+    
+    // Continue processing
+    next();
+  });
 
   // Multer setup for file uploads
   const upload = multer({
