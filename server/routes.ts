@@ -202,11 +202,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/debug-ebay-callback", async (req: Request, res: Response) => {
     console.log("Debug eBay callback route accessed with query params:", req.query);
     
-    if (req.query.process && req.query.code) {
+    // Auto-process parameter - will be used for automatic processing from the interceptor script
+    const autoProcess = req.query.auto === 'true';
+    
+    // Process the code if request indicates we should (via process or auto param) or if the code parameter exists
+    if ((req.query.process || autoProcess) && req.query.code) {
       try {
+        console.log("Start processing eBay callback, auto =", autoProcess);
+        
         // Extract the code from URL if a full URL was pasted
         let rawCode = req.query.code.toString();
         let code = rawCode;
+        
+        console.log("Raw code received:", rawCode.substring(0, 50) + "...");
         
         // First, check if this is a full URL that was pasted
         if (rawCode.includes('?code=')) {
@@ -219,6 +227,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               console.log(`Extracted code from URL: ${code.substring(0, 20)}...`);
             }
           } catch (parseError) {
+            console.error("Error parsing URL:", parseError);
             // If URL parsing fails, try a regex approach
             const codeMatch = rawCode.match(/[?&]code=([^&]+)/);
             if (codeMatch && codeMatch[1]) {
