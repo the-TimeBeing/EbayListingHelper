@@ -234,7 +234,11 @@ export class EbayService {
       }
     } catch (error) {
       console.error('[EBAY SERVICE] Error in searchByImage:', error);
-      // For demo purposes, return mock data if the API call fails
+      // Only use fallback if it's not an auth error
+      if (error instanceof Error && error.message.includes('authenticate with eBay')) {
+        throw error; // Re-throw auth errors
+      }
+      // For other errors, return mock data
       return [
         {
           itemId: 'fallback-123456',
