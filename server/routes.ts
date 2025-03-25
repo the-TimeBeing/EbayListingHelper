@@ -204,7 +204,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     if (req.query.process && req.query.code) {
       try {
-        const code = req.query.code.toString();
+        // Extract the code from URL if a full URL was pasted
+        let rawCode = req.query.code.toString();
+        let code = rawCode;
+        
+        // First, check if this is a full URL that was pasted
+        if (rawCode.includes('?code=')) {
+          try {
+            // Extract just the code parameter
+            const urlObj = new URL(rawCode);
+            const codeParam = urlObj.searchParams.get('code');
+            if (codeParam) {
+              code = codeParam;
+              console.log(`Extracted code from URL: ${code.substring(0, 20)}...`);
+            }
+          } catch (parseError) {
+            // If URL parsing fails, try a regex approach
+            const codeMatch = rawCode.match(/[?&]code=([^&]+)/);
+            if (codeMatch && codeMatch[1]) {
+              code = decodeURIComponent(codeMatch[1]);
+              console.log(`Extracted code using regex: ${code.substring(0, 20)}...`);
+            }
+          }
+        }
+        
         console.log(`Processing eBay OAuth code in debug mode: ${code.substring(0, 20)}...`);
         
         // Get the access token using the code
@@ -369,11 +392,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           <div class="card">
             <h2>Manual Code Entry</h2>
-            <p>If you have a code from a different source, you can paste it here:</p>
+            <p>Paste <strong>either the code OR the full URL</strong> from eBay's redirect. We'll extract the code automatically.</p>
+            <div style="background: #f8f8f8; padding: 10px; border-left: 3px solid #0064D2; margin-bottom: 15px;">
+              <p style="margin: 0; font-size: 0.9rem;">
+                <strong>Example #1:</strong> Just the code: <code style="word-break: break-all; background: #eee; padding: 2px 4px;">v^1.1#i^1#r^1#p^3#f^0#I^3#t^Ul41XzY...</code>
+              </p>
+              <p style="margin: 5px 0 0; font-size: 0.9rem;">
+                <strong>Example #2:</strong> Full URL: <code style="word-break: break-all; background: #eee; padding: 2px 4px;">https://ai-powered-ebay-listing-assistant.replit.app/?code=v%5E1.1%23i...</code>
+              </p>
+            </div>
             <form action="/debug-ebay-callback" method="get">
               <div class="form-group">
-                <label for="code">eBay Authorization Code:</label>
-                <input type="text" id="code" name="code" placeholder="Paste the code here...">
+                <label for="code">eBay Authorization Code or Redirect URL:</label>
+                <input type="text" id="code" name="code" placeholder="Paste the code or URL here...">
               </div>
               <input type="hidden" name="process" value="true">
               <button type="submit">Process Code</button>
@@ -639,8 +670,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const newUser = await storage.createUser({
           username: tempUsername,
-          password: tempPassword,
-          role: 'user'
+          password: tempPassword
+          // No role parameter as it's not part of our schema
         });
         
         userId = newUser.id;
