@@ -430,6 +430,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/", async (req: Request, res: Response, next: NextFunction) => {
     // Log all query parameters for debugging
     console.log("Root path accessed with query params:", req.query);
+    console.log("Complete URL:", req.protocol + '://' + req.get('host') + req.originalUrl);
     
     // Check if this is an eBay OAuth callback with authorization code
     if (req.query.code) {
@@ -440,10 +441,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           throw new Error("Invalid authorization code");
         }
 
-        console.log("eBay code found, processing immediately");
+        console.log("eBay OAuth callback detected!");
+        console.log("Authorization code found, first 20 chars:", code.substring(0, 20) + "...");
+        console.log("Attempting to exchange code for access token...");
         
         // Get eBay OAuth tokens
         const tokenData = await ebayService.getAccessToken(code);
+        console.log("Successfully received access token! Expires in:", tokenData.expires_in, "seconds");
         
         // Generate a random username for first-time users
         let userId = 0;
@@ -453,6 +457,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!req.session.userId) {
           // This is a new user, create one with the eBay tokens
           const username = `ebay_user_${Date.now()}`;
+          console.log("Creating new user:", username);
+          
           const insertUser = {
             username: username,
             // A fake password is required by our schema, but we won't use it for eBay auth
@@ -468,6 +474,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } else {
           // Existing user, update their tokens
           userId = req.session.userId;
+          console.log("Updating tokens for existing user ID:", userId);
           user = await storage.getUser(userId);
           
           if (!user) {
@@ -485,25 +492,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // Store everything in the session
+        console.log("Setting up session with eBay credentials");
         req.session.userId = userId;
         req.session.ebayToken = tokenData.access_token;
         req.session.ebayRefreshToken = tokenData.refresh_token;
         req.session.ebayTokenExpiry = new Date(Date.now() + tokenData.expires_in * 1000);
 
         // Save the session explicitly and redirect to direct photos page
+        console.log("Saving session and preparing to redirect user");
         req.session.save((err) => {
           if (err) {
             console.error("Error saving session:", err);
             return res.status(500).send("Session error");
           }
           
-          // Redirect to the photo upload page
-          res.redirect('/direct-photos');
+          console.log("Authentication successful! Redirecting to photo upload page");
+          // Use an HTML page with both meta refresh and JavaScript redirect for reliability
+          res.send(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <title>eBay Authentication Successful</title>
+              <meta http-equiv="refresh" content="2;url=/direct-photos">
+              <style>
+                body { font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f7f7f7; }
+                .container { text-align: center; padding: 2rem; max-width: 500px; }
+                h2 { color: #0064d2; margin-bottom: 1rem; }
+                p { color: #666; margin-bottom: 2rem; }
+                .loader { border: 5px solid #f3f3f3; border-top: 5px solid #0064d2; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 2rem; }
+                @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <div class="loader"></div>
+                <h2>eBay Authentication Successful!</h2>
+                <p>Redirecting you to the photo upload page...</p>
+              </div>
+              <script>
+                // JavaScript redirect as fallback
+                setTimeout(function() {
+                  window.location.href = '/direct-photos';
+                }, 2000);
+              </script>
+            </body>
+            </html>
+          `);
         });
         
       } catch (error) {
         console.error("eBay auth error:", error);
-        // Since we're on the root path, return a user-friendly error page
+        // Since we're on the root path, return a user-friendly error page with debug info
         res.send(`
           <html>
             <head>
@@ -513,9 +552,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 h1 { color: #E53935; }
                 .error-icon { font-size: 48px; color: #E53935; margin: 20px 0; }
                 .container { max-width: 600px; margin: 0 auto; }
-                .error-details { margin-top: 30px; text-align: left; background: #f5f5f5; padding: 15px; border-radius: 4px; }
+                .error-details { margin-top: 30px; text-align: left; background: #f5f5f5; padding: 15px; border-radius: 4px; overflow: auto; }
                 .button { display: inline-block; background: #0064D2; color: white; padding: 10px 20px; 
                           border-radius: 4px; text-decoration: none; margin-top: 20px; }
+                .debug-section { margin-top: 30px; text-align: left; border-top: 1px solid #ddd; padding-top: 20px; }
+                .code { font-family: monospace; background: #f5f5f5; padding: 3px 6px; border-radius: 3px; }
               </style>
             </head>
             <body>
@@ -526,8 +567,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 <div class="error-details">
                   <p><strong>Error:</strong> ${error instanceof Error ? error.message : String(error)}</p>
                 </div>
-                <p>Please try again or use the test login option:</p>
+                
+                <div class="debug-section">
+                  <h3>Debug Information</h3>
+                  <p>Try this alternative method:</p>
+                  <ol>
+                    <li>Copy the URL from your browser</li>
+                    <li>Navigate to <a href="/debug-ebay-callback">/debug-ebay-callback</a></li>
+                    <li>Paste the complete URL in the form</li>
+                    <li>Click "Process Code"</li>
+                  </ol>
+                </div>
+                
+                <p>Or use our test login option (no eBay authentication needed):</p>
                 <a href="/api/auth/test-login" class="button">Use Test Login</a>
+                <p style="margin-top: 30px;"><a href="/debug-ebay-callback">Go to Debug Tool</a></p>
               </div>
             </body>
           </html>
