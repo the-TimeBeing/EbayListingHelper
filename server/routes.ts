@@ -690,12 +690,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Store photos in session for later use
+      // Store photos in session and save immediately
       req.session.photos = photos;
-
-      res.json({
-        message: "Photos uploaded successfully",
-        count: photos.length
+      req.session.save((err) => {
+        if (err) {
+          console.error("Error saving photos to session:", err);
+          return res.status(500).json({ message: "Failed to save photos" });
+        }
+        
+        console.log("Photos successfully saved to session:", photos.length);
+        res.json({
+          message: "Photos uploaded successfully",
+          count: photos.length
+        });
       });
     } catch (error) {
       console.error("Base64 photo upload error:", error);
