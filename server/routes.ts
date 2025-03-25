@@ -303,8 +303,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return res.status(500).send("Session error");
           }
           
-          // Directly redirect to the photos page with a special parameter to force auth check
-          res.redirect('/photos?auth=1');
+          // Instead of redirecting, serve a success page with a meta refresh to photos
+          res.send(`
+            <!DOCTYPE html>
+            <html>
+              <head>
+                <title>eBay Authentication Successful</title>
+                <meta http-equiv="refresh" content="3;url=/photos?auth=1">
+                <style>
+                  body { font-family: Arial, sans-serif; text-align: center; padding-top: 50px; line-height: 1.6; }
+                  h1 { color: #0064D2; }
+                  .success-icon { font-size: 48px; color: green; margin: 20px 0; }
+                  .container { max-width: 600px; margin: 0 auto; }
+                  .redirect-message { margin-top: 30px; color: #666; }
+                  .loading { display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(0,100,210,0.3); 
+                             border-radius: 50%; border-top-color: #0064D2; animation: spin 1s ease-in-out infinite; }
+                  @keyframes spin { to { transform: rotate(360deg); } }
+                </style>
+              </head>
+              <body>
+                <div class="container">
+                  <h1>eBay Authentication Successful!</h1>
+                  <div class="success-icon">✅</div>
+                  <p>You have successfully authenticated with eBay.</p>
+                  <p>Your account has been connected and you can now create listings.</p>
+                  <div class="redirect-message">
+                    <p>Redirecting to the photo upload page <span class="loading"></span></p>
+                    <p>If you are not redirected automatically, <a href="/photos?auth=1">click here</a>.</p>
+                  </div>
+                </div>
+              </body>
+            </html>
+          `);
         });
       } catch (error) {
         console.error("eBay auth error:", error);
@@ -381,8 +411,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(500).send("Session error");
         }
         
-        // Directly redirect to the photos page with a special parameter to force auth check
-        res.redirect('/photos?auth=1');
+        // Instead of redirecting, serve a success page with a meta refresh to photos
+        res.send(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>eBay Authentication Successful</title>
+              <meta http-equiv="refresh" content="3;url=/photos?auth=1">
+              <style>
+                body { font-family: Arial, sans-serif; text-align: center; padding-top: 50px; line-height: 1.6; }
+                h1 { color: #0064D2; }
+                .success-icon { font-size: 48px; color: green; margin: 20px 0; }
+                .container { max-width: 600px; margin: 0 auto; }
+                .redirect-message { margin-top: 30px; color: #666; }
+                .loading { display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(0,100,210,0.3); 
+                           border-radius: 50%; border-top-color: #0064D2; animation: spin 1s ease-in-out infinite; }
+                @keyframes spin { to { transform: rotate(360deg); } }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <h1>eBay Authentication Successful!</h1>
+                <div class="success-icon">✅</div>
+                <p>You have successfully authenticated with eBay.</p>
+                <p>Your account has been connected and you can now create listings.</p>
+                <div class="redirect-message">
+                  <p>Redirecting to the photo upload page <span class="loading"></span></p>
+                  <p>If you are not redirected automatically, <a href="/photos?auth=1">click here</a>.</p>
+                </div>
+              </div>
+            </body>
+          </html>
+        `);
       });
     } catch (error) {
       console.error("eBay auth error:", error);
