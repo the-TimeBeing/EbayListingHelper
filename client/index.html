@@ -5,66 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>eBay Listing Assistant</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-  
-  <!-- eBay callback detection script - runs before React loads -->
-  <script>
-    // This script runs immediately and intercepts eBay OAuth callbacks
-    (function() {
-      try {
-        // Check if we're on the root path and there's a code parameter
-        var url = new URL(window.location.href);
-        
-        if (window.location.pathname === '/' && url.searchParams.has('code')) {
-          console.log('[EBAY INTERCEPTOR] Detected eBay callback on root path with code parameter');
-          
-          // Show a visual indicator to the user that we're processing
-          document.body.innerHTML = `
-            <div style="
-              font-family: Arial, sans-serif;
-              display: flex; 
-              flex-direction: column; 
-              align-items: center; 
-              justify-content: center; 
-              height: 100vh;
-              background-color: #f7f7f7;
-              color: #333;
-              text-align: center;
-              padding: 20px;
-            ">
-              <div style="
-                width: 50px;
-                height: 50px;
-                border-radius: 50%;
-                border: 5px solid #f3f3f3;
-                border-top: 5px solid #0064d2;
-                animation: spin 1s linear infinite;
-                margin-bottom: 2rem;
-              "></div>
-              <h2 style="color: #0064d2; margin-bottom: 1rem;">eBay Authentication</h2>
-              <p>Processing your eBay authorization...</p>
-              <p style="font-size: 0.8rem; color: #666;">Please wait, you'll be redirected automatically</p>
-            </div>
-            <style>
-              @keyframes spin { 
-                0% { transform: rotate(0deg); } 
-                100% { transform: rotate(360deg); } 
-              }
-            </style>
-          `;
-          
-          // Redirect to debug-ebay-callback with the entire URL as the code parameter and auto=true
-          var fullUrl = window.location.href;
-          console.log('[EBAY INTERCEPTOR] Redirecting to debug handler with URL:', fullUrl);
-          
-          window.location.href = '/debug-ebay-callback?auto=true&process=true&code=' + encodeURIComponent(fullUrl);
-        } else {
-          console.log('[EBAY INTERCEPTOR] No eBay callback detected, proceeding with normal app load');
-        }
-      } catch (error) {
-        console.error('[EBAY INTERCEPTOR] Error handling eBay callback:', error);
-      }
-    })();
-  </script>
 </head>
 <body>
   <div id="root"></div>

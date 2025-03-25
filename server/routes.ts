@@ -31,29 +31,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     })
   );
-  
-  // Handle the direct-photos route for eBay OAuth callbacks
-  app.get("/direct-photos", (req: Request, res: Response, next: NextFunction) => {
-    console.log("Direct photos path accessed with query params:", req.query);
-    
-    // If there's no code, just continue to the normal React app which will handle the route
-    next();
-  });
-
-  // CRITICAL: Handle eBay OAuth callback at the root path since that's where eBay redirects
-  app.get("/", (req: Request, res: Response, next: NextFunction) => {
-    console.log("Root path accessed with query params:", req.query);
-    const code = req.query.code as string | undefined;
-    
-    if (code) {
-      console.log("eBay OAuth code detected in query params:", code.substring(0, 20) + '...');
-      // Serve the eBay success page that will handle the code processing via client-side JS
-      return res.sendFile(process.cwd() + '/server/public/ebay-success.html');
-    }
-    
-    // Not an OAuth callback, continue to normal routing
-    next();
-  });
 
   // Multer setup for file uploads
   const upload = multer({
@@ -75,108 +52,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/auth/ebay/url", (req: Request, res: Response) => {
     // Return the actual eBay OAuth URL
     const authUrl = ebayService.getOAuthUrl();
-    console.log("Providing eBay auth URL to client:", authUrl);
     res.json({ url: authUrl });
-  });
-  
-  // Direct handler for the /direct-photos route to handle eBay OAuth callback - removed to prevent conflicts
-  
-  // Static redirect route for eBay OAuth that should always work
-  app.get("/ebay-oauth/callback", async (req: Request, res: Response) => {
-    console.log("[FIXED REDIRECT ROUTE] eBay OAuth callback received with query params:", req.query);
-    
-    try {
-      if (!req.query.code || typeof req.query.code !== 'string') {
-        throw new Error("No valid authorization code provided");
-      }
-      
-      const code = req.query.code;
-      console.log("[FIXED REDIRECT ROUTE] Processing eBay authorization code");
-      
-      // Exchange the code for access tokens
-      const tokenData = await ebayService.getAccessToken(code);
-      console.log("[FIXED REDIRECT ROUTE] Successfully received tokens from eBay");
-      
-      // Create a debug user or use existing session user
-      let user;
-      
-      if (!req.session.userId) {
-        // Create new debug user
-        user = await storage.createUser({
-          username: `ebay_oauth_user_${Date.now()}`,
-          password: `oauth_${Math.random().toString(36).substring(2, 15)}`
-        });
-        console.log("[FIXED REDIRECT ROUTE] Created new user with ID:", user.id);
-      } else {
-        // Update existing user
-        user = await storage.getUser(req.session.userId);
-        if (!user) {
-          throw new Error("User not found in session");
-        }
-        console.log("[FIXED REDIRECT ROUTE] Using existing user with ID:", user.id);
-      }
-      
-      // Calculate token expiry
-      const expiryDate = new Date();
-      expiryDate.setSeconds(expiryDate.getSeconds() + tokenData.expires_in);
-      
-      // Update user with the tokens
-      user = await storage.updateUserEbayTokens(
-        user.id,
-        tokenData.access_token,
-        tokenData.refresh_token,
-        expiryDate
-      );
-      
-      // Set session variables
-      req.session.userId = user.id;
-      req.session.ebayToken = tokenData.access_token;
-      req.session.ebayRefreshToken = tokenData.refresh_token;
-      req.session.ebayTokenExpiry = expiryDate;
-      
-      // Save session and redirect
-      req.session.save(err => {
-        if (err) {
-          console.error("[FIXED REDIRECT ROUTE] Session save error:", err);
-          return res.status(500).send("Session error");
-        }
-        
-        console.log("[FIXED REDIRECT ROUTE] Authentication successful, redirecting to direct-photos");
-        res.redirect('/direct-photos');
-      });
-    } catch (error) {
-      console.error("[FIXED REDIRECT ROUTE] Error processing OAuth callback:", error);
-      
-      // Show user-friendly error page
-      res.send(`
-        <html>
-          <head>
-            <title>eBay Authentication Error</title>
-            <style>
-              body { font-family: Arial, sans-serif; padding: 2rem; text-align: center; }
-              h1 { color: #e53935; }
-              .error-box { background: #ffebee; border: 1px solid #ffcdd2; border-radius: 4px; padding: 1rem; margin: 2rem 0; }
-              .actions { margin-top: 2rem; }
-              .button { display: inline-block; background: #0064D2; color: white; padding: 10px 20px; 
-                       text-decoration: none; border-radius: 4px; margin: 0 10px; }
-              .alt-button { background: #757575; }
-            </style>
-          </head>
-          <body>
-            <h1>eBay Authentication Failed</h1>
-            <div class="error-box">
-              <p>We encountered an error while processing your eBay authentication:</p>
-              <p><strong>${error instanceof Error ? error.message : String(error)}</strong></p>
-            </div>
-            <div class="actions">
-              <a href="/api/auth/ebay/url" class="button">Try Again</a>
-              <a href="/api/auth/test-login" class="button alt-button">Use Test Account</a>
-              <a href="/" class="button alt-button">Return Home</a>
-            </div>
-          </body>
-        </html>
-      `);
-    }
   });
   
   // Separate endpoint for test login
@@ -326,19 +202,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/debug-ebay-callback", async (req: Request, res: Response) => {
     console.log("Debug eBay callback route accessed with query params:", req.query);
     
-    // Auto-process parameter - will be used for automatic processing from the interceptor script
-    const autoProcess = req.query.auto === 'true';
-    
-    // Process the code if request indicates we should (via process or auto param) or if the code parameter exists
-    if ((req.query.process || autoProcess) && req.query.code) {
+    if (req.query.process && req.query.code) {
       try {
-        console.log("Start processing eBay callback, auto =", autoProcess);
-        
         // Extract the code from URL if a full URL was pasted
         let rawCode = req.query.code.toString();
         let code = rawCode;
-        
-        console.log("Raw code received:", rawCode.substring(0, 50) + "...");
         
         // First, check if this is a full URL that was pasted
         if (rawCode.includes('?code=')) {
@@ -351,7 +219,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               console.log(`Extracted code from URL: ${code.substring(0, 20)}...`);
             }
           } catch (parseError) {
-            console.error("Error parsing URL:", parseError);
             // If URL parsing fails, try a regex approach
             const codeMatch = rawCode.match(/[?&]code=([^&]+)/);
             if (codeMatch && codeMatch[1]) {
@@ -563,7 +430,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/", async (req: Request, res: Response, next: NextFunction) => {
     // Log all query parameters for debugging
     console.log("Root path accessed with query params:", req.query);
-    console.log("Complete URL:", req.protocol + '://' + req.get('host') + req.originalUrl);
     
     // Check if this is an eBay OAuth callback with authorization code
     if (req.query.code) {
@@ -574,151 +440,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           throw new Error("Invalid authorization code");
         }
 
-        console.log("eBay OAuth callback detected!");
-        console.log("Authorization code found, first 20 chars:", code.substring(0, 20) + "...");
-        console.log("Attempting to exchange code for access token...");
+        console.log("eBay code found, redirecting to debug page for easier processing");
         
-        // Get eBay OAuth tokens
-        const tokenData = await ebayService.getAccessToken(code);
-        console.log("Successfully received access token! Expires in:", tokenData.expires_in, "seconds");
-        
-        // Generate a random username for first-time users
-        let userId = 0;
-        let user;
-        
-        // Create or find the user with these tokens
-        if (!req.session.userId) {
-          // This is a new user, create one with the eBay tokens
-          const username = `ebay_user_${Date.now()}`;
-          console.log("Creating new user:", username);
-          
-          const insertUser = {
-            username: username,
-            // A fake password is required by our schema, but we won't use it for eBay auth
-            password: `ebay_pass_${Math.random().toString(36).substring(2, 15)}`, 
-            ebayToken: tokenData.access_token,
-            ebayRefreshToken: tokenData.refresh_token,
-            ebayTokenExpiry: new Date(Date.now() + tokenData.expires_in * 1000)
-          };
-          
-          user = await storage.createUser(insertUser);
-          userId = user.id;
-          console.log(`Created new user: ${username} with ID: ${userId}`);
-        } else {
-          // Existing user, update their tokens
-          userId = req.session.userId;
-          console.log("Updating tokens for existing user ID:", userId);
-          user = await storage.getUser(userId);
-          
-          if (!user) {
-            throw new Error("User not found");
-          }
-          
-          user = await storage.updateUserEbayTokens(
-            userId,
-            tokenData.access_token,
-            tokenData.refresh_token,
-            new Date(Date.now() + tokenData.expires_in * 1000)
-          );
-          
-          console.log(`Updated tokens for user ID: ${userId}`);
-        }
-        
-        // Store everything in the session
-        console.log("Setting up session with eBay credentials");
-        req.session.userId = userId;
-        req.session.ebayToken = tokenData.access_token;
-        req.session.ebayRefreshToken = tokenData.refresh_token;
-        req.session.ebayTokenExpiry = new Date(Date.now() + tokenData.expires_in * 1000);
-
-        // Save the session explicitly and redirect to direct photos page
-        console.log("Saving session and preparing to redirect user");
-        req.session.save((err) => {
-          if (err) {
-            console.error("Error saving session:", err);
-            return res.status(500).send("Session error");
-          }
-          
-          console.log("Authentication successful! Redirecting to photo upload page");
-          // Use an HTML page with both meta refresh and JavaScript redirect for reliability
-          res.send(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-              <title>eBay Authentication Successful</title>
-              <meta http-equiv="refresh" content="2;url=/direct-photos">
-              <style>
-                body { font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f7f7f7; }
-                .container { text-align: center; padding: 2rem; max-width: 500px; }
-                h2 { color: #0064d2; margin-bottom: 1rem; }
-                p { color: #666; margin-bottom: 2rem; }
-                .loader { border: 5px solid #f3f3f3; border-top: 5px solid #0064d2; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 2rem; }
-                @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-              </style>
-            </head>
-            <body>
-              <div class="container">
-                <div class="loader"></div>
-                <h2>eBay Authentication Successful!</h2>
-                <p>Redirecting you to the photo upload page...</p>
-              </div>
-              <script>
-                // JavaScript redirect as fallback
-                setTimeout(function() {
-                  window.location.href = '/direct-photos';
-                }, 2000);
-              </script>
-            </body>
-            </html>
-          `);
-        });
+        // Instead of processing the code directly, redirect to our debug tool
+        // This is a more reliable solution for handling the eBay auth flow
+        return res.redirect(`/debug-ebay-callback?code=${encodeURIComponent(code)}`);
         
       } catch (error) {
-        console.error("eBay auth error:", error);
-        // Since we're on the root path, return a user-friendly error page with debug info
-        res.send(`
-          <html>
-            <head>
-              <title>eBay Authentication Error</title>
-              <style>
-                body { font-family: Arial, sans-serif; text-align: center; padding-top: 50px; line-height: 1.6; }
-                h1 { color: #E53935; }
-                .error-icon { font-size: 48px; color: #E53935; margin: 20px 0; }
-                .container { max-width: 600px; margin: 0 auto; }
-                .error-details { margin-top: 30px; text-align: left; background: #f5f5f5; padding: 15px; border-radius: 4px; overflow: auto; }
-                .button { display: inline-block; background: #0064D2; color: white; padding: 10px 20px; 
-                          border-radius: 4px; text-decoration: none; margin-top: 20px; }
-                .debug-section { margin-top: 30px; text-align: left; border-top: 1px solid #ddd; padding-top: 20px; }
-                .code { font-family: monospace; background: #f5f5f5; padding: 3px 6px; border-radius: 3px; }
-              </style>
-            </head>
-            <body>
-              <div class="container">
-                <h1>eBay Authentication Failed</h1>
-                <div class="error-icon">⚠️</div>
-                <p>We encountered a problem while authenticating with eBay.</p>
-                <div class="error-details">
-                  <p><strong>Error:</strong> ${error instanceof Error ? error.message : String(error)}</p>
-                </div>
-                
-                <div class="debug-section">
-                  <h3>Debug Information</h3>
-                  <p>Try this alternative method:</p>
-                  <ol>
-                    <li>Copy the URL from your browser</li>
-                    <li>Navigate to <a href="/debug-ebay-callback">/debug-ebay-callback</a></li>
-                    <li>Paste the complete URL in the form</li>
-                    <li>Click "Process Code"</li>
-                  </ol>
-                </div>
-                
-                <p>Or use our test login option (no eBay authentication needed):</p>
-                <a href="/api/auth/test-login" class="button">Use Test Login</a>
-                <p style="margin-top: 30px;"><a href="/debug-ebay-callback">Go to Debug Tool</a></p>
-              </div>
-            </body>
-          </html>
-        `);
+        console.error("eBay auth redirect error:", error);
+        res.status(500).json({ message: "Authentication redirect failed", error: error instanceof Error ? error.message : String(error) });
       }
       return; // Important to stop further processing
     }
@@ -1145,28 +875,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Listing generation error:", error);
       
-      // Explicitly set and save the error state in the session
       req.session.processingProgress = {
         status: 'error',
         currentStep: 'error',
         stepsCompleted: 0,
         totalSteps: 5,
-        error: error instanceof Error ? error.message : "Unknown error during listing generation"
+        error: error.message || "Unknown error during listing generation"
       };
       
-      // Make sure to save the session before sending the response
-      req.session.save((err) => {
-        if (err) {
-          console.error("Error saving session after listing error:", err);
-        }
-        
-        // Send a more detailed error response
-        res.status(500).json({ 
-          message: "Failed to generate listing", 
-          error: error instanceof Error ? error.message : String(error),
-          errorDetails: error instanceof Error ? (error.stack || '') : ''
-        });
-      });
+      res.status(500).json({ message: "Failed to generate listing", error: error.message });
     }
   });
 
@@ -1252,12 +969,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         if (allListings.length > 0) {
           // Sort by creation date descending and take the first one
-          const sortedListings = [...allListings].sort((a, b) => {
-            // Handle potential null dates by providing fallbacks
-            const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
-            const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
-            return dateB.getTime() - dateA.getTime();
-          });
+          const sortedListings = [...allListings].sort((a, b) => 
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
           
           console.log("[LAST LISTING] Returning most recent listing as fallback:", sortedListings[0].id);
           return res.json(sortedListings[0]);
@@ -1326,13 +1040,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             description: listing.description,
             aspects: {
               "Condition": [listing.condition],
-              ...(listing.itemSpecifics && Array.isArray(listing.itemSpecifics) ? 
-                Object.fromEntries(
-                  listing.itemSpecifics.map((spec: Record<string, string>) => {
-                    const key = Object.keys(spec)[0];
-                    return [key, [spec[key]]];
-                  })
-                ) : {})
+              ...Object.fromEntries(
+                (listing.itemSpecifics || []).map(spec => {
+                  const key = Object.keys(spec)[0];
+                  return [key, [spec[key]]];
+                })
+              )
             },
             imageUrls: listing.images || []
           },
