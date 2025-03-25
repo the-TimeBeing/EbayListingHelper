@@ -35,7 +35,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Debug middleware to track session consistency
   app.use((req: Request, res: Response, next: NextFunction) => {
     // Ignore static asset requests
-    if (!req.path.startsWith('/api') && !req.path === '/') {
+    if (!req.path.startsWith('/api') && req.path !== '/') {
       return next();
     }
     
@@ -736,7 +736,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Check for authentication, but don't redirect or block - just set user ID if missing
     if (!req.session.userId) {
       req.session.userId = 1; // Set default user ID for test mode
+      console.log("Created default user ID for photo upload:", req.session.userId);
     }
+    
     try {
       const { photos } = req.body;
       
@@ -763,6 +765,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Set a flag to indicate this session has photos
       req.session.hasUploadedPhotos = true;
       
+      // Create a more structured initial progress state
+      req.session.processingProgress = {
+        status: 'waiting',
+        currentStep: 'waiting_for_generation',
+        stepsCompleted: 0,
+        totalSteps: 5
+      };
+      
       // Save the session explicitly to ensure data persistence
       req.session.save((saveErr) => {
         if (saveErr) {
@@ -770,9 +780,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(500).json({ message: "Failed to save photos to session" });
         }
         
-        console.log("Photos successfully saved to session:", photos.length, "Photos status:", !!req.session.photos, "First photo length:", req.session.photos[0]?.length);
+        const photoSizes = photos.map(p => Math.round(p.length / 1024));
+        console.log("Photos successfully saved to session:", {
+          count: photos.length, 
+          sessionId: req.session.id,
+          userId: req.session.userId,
+          photoSizes: photoSizes, // Size in KB for each photo
+          totalSize: photoSizes.reduce((a, b) => a + b, 0), // Total size in KB
+        });
         
-        // Return immediately with the photos count
+        // Return immediately with the photos count and session ID for client-side tracking
         res.json({
           message: "Photos uploaded successfully",
           count: photos.length,
@@ -793,7 +810,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Check for authentication, but don't redirect or block - just set user ID if missing
     if (!req.session.userId) {
       req.session.userId = 1; // Set default user ID for test mode
+      console.log("Created default user ID for listing generation:", req.session.userId);
     }
+    
     try {
       const { condition, conditionLevel, sessionId } = req.body;
       
@@ -803,9 +822,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: req.session.userId,
         hasPhotos: !!req.session.photos,
         photoCount: req.session.photos?.length,
-        photoTypes: req.session.photos?.map(p => typeof p),
-        firstPhotoPreview: req.session.photos?.[0]?.substring(0, 50)
+        photoTypes: req.session.photos ? req.session.photos.map(p => typeof p) : [],
+        firstPhotoPreview: req.session.photos && req.session.photos.length > 0 ? req.session.photos[0].substring(0, 50) : 'none'
       });
+      
+      // If the client sent a session ID and it doesn't match the current one,
+      // we might have a session mismatch issue
+      if (sessionId && sessionId !== req.session.id) {
+        console.warn(`Session ID mismatch: Client sent ${sessionId}, but current session is ${req.session.id}`);
+      }
       
       if (!condition || !conditionLevel) {
         return res.status(400).json({ message: "Condition information is required" });
