@@ -16,8 +16,8 @@ export class EbayService {
     // This ensures it works on Replit and other environments
     const deployedUrl = process.env.REPLIT_DEPLOYMENT_DOMAIN || '';
     const defaultRedirectUrl = deployedUrl 
-      ? `https://${deployedUrl}/api/auth/ebay/callback`
-      : 'https://ai-powered-ebay-listing-assistant.replit.app/api/auth/ebay/callback';
+      ? `https://${deployedUrl}`
+      : 'https://ai-powered-ebay-listing-assistant.replit.app';
     
     this.redirectUri = process.env.EBAY_REDIRECT_URI || defaultRedirectUrl;
     this.sandboxMode = process.env.EBAY_SANDBOX_MODE === 'true';
