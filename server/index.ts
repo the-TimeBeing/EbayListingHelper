@@ -7,51 +7,22 @@ const app = express();
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: false, limit: '50mb' }));
 
-// CRITICAL: Add a special route to handle eBay OAuth callback before any other routes
-// This fixes the production issue where the callback with code parameter returns 404
-app.get("/ebay-callback", (req: Request, res: Response) => {
-  console.log("eBay callback route accessed with query params:", req.query);
+// Serve static HTML for eBay success page
+app.use('/static', express.static(process.cwd() + '/server/public'));
+
+// CRITICAL: Handle eBay OAuth callback at the root path since that's where eBay redirects
+app.get("/", (req: Request, res: Response, next: NextFunction) => {
+  console.log("Root path accessed with query params:", req.query);
   const code = req.query.code as string | undefined;
   
-  if (!code) {
-    return res.status(400).send("Missing authorization code");
+  if (code) {
+    console.log("eBay OAuth code detected in query params:", code.substring(0, 20) + '...');
+    // Serve the eBay success page that will handle the code processing via client-side JS
+    return res.sendFile(process.cwd() + '/server/public/ebay-success.html');
   }
   
-  res.send(`
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <title>eBay Authentication Successful</title>
-        <style>
-          body { font-family: Arial, sans-serif; text-align: center; padding-top: 50px; line-height: 1.6; }
-          h1 { color: #0064D2; }
-          .success-icon { font-size: 48px; color: green; margin: 20px 0; }
-          .container { max-width: 600px; margin: 0 auto; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); padding: 30px; }
-          .redirect-message { margin-top: 30px; color: #666; }
-          .code { font-family: monospace; background: #f5f5f5; padding: 10px; border-radius: 5px; word-break: break-all; margin: 15px 0; }
-          .actions { margin-top: 30px; }
-          .btn { display: inline-block; padding: 10px 20px; background: #0064D2; color: white; text-decoration: none; border-radius: 5px; margin: 0 10px; }
-          .btn-outline { background: white; color: #0064D2; border: 1px solid #0064D2; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h1>eBay Authentication Successful</h1>
-          <div class="success-icon">✅</div>
-          <p>We received an authorization code from eBay:</p>
-          <div class="code">${code.substring(0, 20)}...</div>
-          <p>Due to deployment configuration, you'll need to:</p>
-          <div class="actions">
-            <a href="/api/auth/test-login" class="btn">Use Test Login</a>
-            <a href="/direct-photos" class="btn btn-outline">Go to Direct Upload</a>
-          </div>
-          <p class="redirect-message">
-            <small>You can create listings with the test login while we work on the eBay integration.</small>
-          </p>
-        </div>
-      </body>
-    </html>
-  `);
+  // Not an OAuth callback, continue to normal routing
+  next();
 });
 
 app.use((req, res, next) => {

@@ -450,6 +450,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // New endpoint to process eBay OAuth code from the client-side success page
+  app.post("/api/auth/ebay/process-code", async (req: Request, res: Response) => {
+    try {
+      const { code } = req.body;
+      
+      if (!code) {
+        return res.status(400).json({ message: "Missing authorization code" });
+      }
+      
+      console.log(`Processing eBay OAuth code: ${code.substring(0, 20)}...`);
+      
+      // Get the access token using the code
+      const tokenData = await ebayService.getAccessToken(code);
+      
+      // Create or update the user record
+      // This endpoint can be used without a login, so we'll create a temporary user
+      let userId: number;
+      
+      if (req.session.userId) {
+        // Update existing user
+        userId = req.session.userId;
+        console.log(`Updating existing user ${userId} with eBay tokens`);
+      } else {
+        // Create new user with temporary credentials
+        const tempUsername = `ebay_user_${Date.now()}`;
+        const tempPassword = `temp_${Math.random().toString(36).substring(2, 15)}`;
+        
+        console.log(`Creating temporary user ${tempUsername} for eBay auth`);
+        
+        const newUser = await storage.createUser({
+          username: tempUsername,
+          password: tempPassword,
+          role: 'user'
+        });
+        
+        userId = newUser.id;
+        req.session.userId = userId;
+        req.session.user = newUser;
+      }
+      
+      // Calculate token expiry time
+      const expiryDate = new Date();
+      expiryDate.setSeconds(expiryDate.getSeconds() + tokenData.expires_in);
+      
+      // Update the user with eBay tokens
+      const updatedUser = await storage.updateUserEbayTokens(
+        userId,
+        tokenData.access_token,
+        tokenData.refresh_token,
+        expiryDate
+      );
+      
+      // Update session with token data
+      req.session.ebayToken = tokenData.access_token;
+      req.session.ebayRefreshToken = tokenData.refresh_token;
+      req.session.ebayTokenExpiry = expiryDate;
+      
+      console.log(`eBay authentication successful for user ${userId}`);
+      res.status(200).json({ success: true });
+      
+    } catch (error) {
+      console.error("Error processing eBay OAuth code:", error);
+      res.status(500).json({ 
+        message: "Failed to process eBay authentication",
+        error: error instanceof Error ? error.message : String(error) 
+      });
+    }
+  });
+
   app.get("/api/auth/status", (req: Request, res: Response) => {
     res.json({
       isAuthenticated: !!req.session.userId,
