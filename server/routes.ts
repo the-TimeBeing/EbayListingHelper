@@ -198,34 +198,192 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Special test route to confirm eBay OAuth callback is working
-  app.get("/debug-ebay-callback", (req: Request, res: Response) => {
+  // Enhanced debug endpoint that can process the eBay auth code manually
+  app.get("/debug-ebay-callback", async (req: Request, res: Response) => {
     console.log("Debug eBay callback route accessed with query params:", req.query);
     
-    // Show a simple HTML response for the user
+    if (req.query.process && req.query.code) {
+      try {
+        const code = req.query.code.toString();
+        console.log(`Processing eBay OAuth code in debug mode: ${code.substring(0, 20)}...`);
+        
+        // Get the access token using the code
+        const tokenData = await ebayService.getAccessToken(code);
+        console.log("Token data received:", JSON.stringify({
+          access_token: tokenData.access_token.substring(0, 10) + "...",
+          expires_in: tokenData.expires_in,
+          refresh_token: tokenData.refresh_token?.substring(0, 10) + "..."
+        }, null, 2));
+        
+        // Create a test user for this debug session
+        const testUser = await storage.createUser({
+          username: `debug_user_${Date.now()}`,
+          password: `debug_${Math.random().toString(36).substring(2, 15)}`
+          // No role parameter as it's not in our schema
+        });
+        
+        // Calculate token expiry time
+        const expiryDate = new Date();
+        expiryDate.setSeconds(expiryDate.getSeconds() + tokenData.expires_in);
+        
+        // Update the user with eBay tokens
+        const updatedUser = await storage.updateUserEbayTokens(
+          testUser.id,
+          tokenData.access_token,
+          tokenData.refresh_token,
+          expiryDate
+        );
+        
+        // Set session for the debug user
+        req.session.userId = testUser.id;
+        req.session.ebayToken = tokenData.access_token;
+        req.session.ebayRefreshToken = tokenData.refresh_token;
+        req.session.ebayTokenExpiry = expiryDate;
+        
+        console.log(`eBay debug authentication successful for user ${testUser.id}`);
+        
+        // Return a success page with details
+        res.send(`
+          <html>
+            <head>
+              <title>eBay Auth Debug - Success</title>
+              <style>
+                body { font-family: Arial, sans-serif; padding: 2rem; line-height: 1.6; }
+                h1 { color: #0064D2; }
+                pre { background: #f5f5f5; padding: 1rem; border-radius: 4px; overflow: auto; }
+                .success { color: green; }
+                .error { color: red; }
+                .token { word-break: break-all; }
+              </style>
+            </head>
+            <body>
+              <h1>eBay OAuth Debug - SUCCESS!</h1>
+              <p class="success">✅ Authentication completed successfully</p>
+              
+              <h2>Authentication Details:</h2>
+              <ul>
+                <li>Debug User ID: ${testUser.id}</li>
+                <li>Token Expires: ${expiryDate.toLocaleString()}</li>
+                <li>Access Token: <span class="token">${tokenData.access_token.substring(0, 20)}...</span></li>
+              </ul>
+              
+              <h2>What happened?</h2>
+              <ol>
+                <li>Received eBay authorization code</li>
+                <li>Successfully exchanged it for an access token</li>
+                <li>Created a debug user and stored the tokens</li>
+                <li>Set up your session with valid eBay credentials</li>
+              </ol>
+              
+              <h2>Next Steps:</h2>
+              <p>You can now use the application normally:</p>
+              <ul>
+                <li><a href="/direct-photos">Upload Photos for a New Listing</a></li>
+                <li><a href="/draft-listings">View Draft Listings</a></li>
+              </ul>
+            </body>
+          </html>
+        `);
+      } catch (error) {
+        console.error("eBay debug auth error:", error);
+        res.send(`
+          <html>
+            <head>
+              <title>eBay Auth Debug - Error</title>
+              <style>
+                body { font-family: Arial, sans-serif; padding: 2rem; line-height: 1.6; }
+                h1 { color: #FF4040; }
+                pre { background: #f5f5f5; padding: 1rem; border-radius: 4px; overflow: auto; }
+                .error { color: red; }
+                .code { font-family: monospace; background: #f5f5f5; padding: 5px; border-radius: 3px; }
+              </style>
+            </head>
+            <body>
+              <h1>eBay OAuth Debug - ERROR</h1>
+              <p class="error">❌ Authentication failed</p>
+              
+              <h2>Error Details:</h2>
+              <pre>${error instanceof Error ? error.message : String(error)}</pre>
+              
+              <h2>What went wrong?</h2>
+              <p>We received your authorization code but encountered an error when trying to exchange it for an access token.</p>
+              <p>This could be due to:</p>
+              <ul>
+                <li>The code has expired (they are only valid for a short time)</li>
+                <li>The redirect URI in the eBay Developer Portal doesn't match what we're using</li>
+                <li>API credentials are incorrect</li>
+              </ul>
+              
+              <h2>Try using the test login:</h2>
+              <p><a href="/api/auth/test-login">Use Test Login Instead</a></p>
+            </body>
+          </html>
+        `);
+      }
+      return;
+    }
+    
+    // Show a debug form that allows testing code processing
     res.send(`
       <html>
         <head>
           <title>eBay Auth Debug</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 2rem; line-height: 1.6; }
+            body { font-family: Arial, sans-serif; padding: 2rem; line-height: 1.6; max-width: 800px; margin: 0 auto; }
             h1 { color: #0064D2; }
-            pre { background: #f5f5f5; padding: 1rem; border-radius: 4px; overflow: auto; }
+            pre { background: #f5f5f5; padding: 1rem; border-radius: 4px; overflow: auto; max-height: 200px; }
             .success { color: green; }
             .error { color: red; }
+            .warning { color: orange; }
+            .form-group { margin-bottom: 1rem; }
+            label { display: block; margin-bottom: 0.5rem; font-weight: bold; }
+            input[type="text"] { width: 100%; padding: 0.5rem; font-family: monospace; }
+            button { background: #0064D2; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; }
+            .card { border: 1px solid #ddd; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; }
           </style>
         </head>
         <body>
-          <h1>eBay OAuth Debug Page</h1>
-          <p>This page helps diagnose eBay authentication issues.</p>
+          <h1>eBay OAuth Debug Tool</h1>
+          <p>This page helps diagnose and fix eBay authentication issues.</p>
           
-          <h2>Query Parameters:</h2>
-          <pre>${JSON.stringify(req.query, null, 2)}</pre>
+          <div class="card">
+            <h2>Current Query Parameters:</h2>
+            <pre>${JSON.stringify(req.query, null, 2)}</pre>
+            
+            <div>
+              ${req.query.code 
+                ? `<p class="success">✅ Authorization code received: ${req.query.code.toString().substring(0, 20)}...</p>` 
+                : `<p class="error">❌ No authorization code in the request</p>`}
+            </div>
+          </div>
           
-          <div>
-            ${req.query.code 
-              ? `<p class="success">✅ Authorization code received: ${req.query.code.toString().substring(0, 10)}...</p>` 
-              : `<p class="error">❌ No authorization code in the request</p>`}
+          ${req.query.code ? `
+            <div class="card">
+              <h2>Process This Code</h2>
+              <p>You have a valid authorization code in the URL. Click below to process it and complete authentication:</p>
+              <a href="/debug-ebay-callback?process=true&code=${encodeURIComponent(req.query.code.toString())}">
+                <button>Process Authorization Code</button>
+              </a>
+            </div>
+          ` : ''}
+          
+          <div class="card">
+            <h2>Manual Code Entry</h2>
+            <p>If you have a code from a different source, you can paste it here:</p>
+            <form action="/debug-ebay-callback" method="get">
+              <div class="form-group">
+                <label for="code">eBay Authorization Code:</label>
+                <input type="text" id="code" name="code" placeholder="Paste the code here...">
+              </div>
+              <input type="hidden" name="process" value="true">
+              <button type="submit">Process Code</button>
+            </form>
+          </div>
+          
+          <div class="card">
+            <h2>Skip eBay Auth</h2>
+            <p class="warning">⚠️ If you can't get eBay authentication working, use our test login instead:</p>
+            <p><a href="/api/auth/test-login"><button>Use Test Login</button></a></p>
           </div>
           
           <p>Return to <a href="/">home page</a></p>
