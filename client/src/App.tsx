@@ -92,6 +92,32 @@ function App() {
     <>
       {/* Floating menu buttons for easy access */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
+        {/* Test & Debug Page */}
+        <a href="/test">
+          <button
+            className="flex items-center justify-center p-4 rounded-full bg-purple-600 hover:bg-purple-700 text-white shadow-lg"
+            title="Test & Debug Tools"
+          >
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              width="24" 
+              height="24" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="2" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+            >
+              <path d="M14 4h6v6"></path>
+              <path d="M10 20H4v-6"></path>
+              <path d="M20 10 4 10"></path>
+              <path d="M4 4v4"></path>
+              <path d="M4 16v4"></path>
+            </svg>
+          </button>
+        </a>
+        
         {/* View Listings Button */}
         <a href="/draft-listings">
           <button

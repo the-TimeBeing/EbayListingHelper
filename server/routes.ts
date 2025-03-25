@@ -160,6 +160,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Test authentication endpoint with redirect (for simpler client implementation)
   app.get("/api/auth/test-login-redirect", async (req: Request, res: Response) => {
+    // Get the redirect target from query params or default to test page
+    const redirectTarget = req.query.redirect || '/test';
+    
     try {
       // Check if we already have a test user
       let user = await storage.getUserByUsername("test_user");
@@ -191,9 +194,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       req.session.ebayRefreshToken = user.ebayRefreshToken || undefined;
       req.session.ebayTokenExpiry = user.ebayTokenExpiry || undefined;
       
+      // Add a test flag to identify this as a test session
+      req.session.isTestSession = true;
+      
       console.log("Test login (redirect) successful, session:", {
+        id: req.session.id,
         userId: req.session.userId,
-        hasToken: !!req.session.ebayToken
+        hasToken: !!req.session.ebayToken,
+        isTestSession: req.session.isTestSession
       });
       
       // Save the session and redirect
@@ -203,8 +211,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(500).send("Session error");
         }
         
-        // Directly redirect to our direct photos page that bypasses auth checks
-        res.redirect('/direct-photos');
+        // Redirect to the specified page or test page as default
+        console.log(`Redirecting to ${redirectTarget}`);
+        res.redirect(redirectTarget as string);
       });
     } catch (error) {
       console.error("Test login error:", error);
