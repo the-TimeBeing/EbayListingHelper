@@ -25,9 +25,19 @@ export default function DraftListingsPage() {
         setError(null);
         
         // Force authentication by setting user ID on the server if needed
-        await apiRequest("GET", "/api/auth/status");
+        const authStatus = await fetch("/api/auth/status", { credentials: 'include' });
+        const authData = await authStatus.json();
+        console.log("[DRAFT LISTINGS] Auth status:", authData);
         
-        const response = await apiRequest("GET", "/api/listings");
+        // Direct fetch instead of using apiRequest to see exactly what's happening
+        console.log("[DRAFT LISTINGS] Making API request to /api/listings");
+        const response = await fetch("/api/listings", { 
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json'
+          }
+        });
+        
         console.log("[DRAFT LISTINGS] Response status:", response.status);
         
         if (!response.ok) {
@@ -37,8 +47,21 @@ export default function DraftListingsPage() {
         }
         
         const result = await response.json();
-        console.log("[DRAFT LISTINGS] Successfully fetched listings:", result.length);
-        setListings(result as Listing[]);
+        console.log("[DRAFT LISTINGS] Successfully fetched listings:", result);
+        console.log("[DRAFT LISTINGS] Result type:", typeof result);
+        console.log("[DRAFT LISTINGS] Is array?", Array.isArray(result));
+        console.log("[DRAFT LISTINGS] Length:", result.length || 'undefined');
+        
+        // Even if the result is empty, still set it
+        setListings(Array.isArray(result) ? result : []);
+        
+        // If we get an empty array but the process was completed, show a useful message
+        if (Array.isArray(result) && result.length === 0) {
+          toast({
+            title: "No listings found",
+            description: "You haven't created any draft listings yet. Try uploading some photos first.",
+          });
+        }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         console.error("[DRAFT LISTINGS] Error fetching listings:", errorMessage);

@@ -7,18 +7,43 @@ interface ListingPreviewProps {
 
 export default function ListingPreview({ listing }: ListingPreviewProps) {
   // Safely get the item specifics
-  const itemSpecifics = listing.itemSpecifics ? 
-    (typeof listing.itemSpecifics === 'string' ? 
-      JSON.parse(listing.itemSpecifics as string) : 
-      listing.itemSpecifics) : 
-    [];
+  let itemSpecifics = [];
+  try {
+    if (listing.itemSpecifics) {
+      if (typeof listing.itemSpecifics === 'string') {
+        itemSpecifics = JSON.parse(listing.itemSpecifics);
+      } else if (Array.isArray(listing.itemSpecifics)) {
+        itemSpecifics = listing.itemSpecifics;
+      } else {
+        console.log("Unexpected itemSpecifics format:", listing.itemSpecifics);
+      }
+    }
+  } catch (e) {
+    console.error("Error parsing itemSpecifics:", e);
+  }
 
   // Safely get images
-  const images = listing.images ? 
-    (typeof listing.images === 'string' ? 
-      JSON.parse(listing.images as string) : 
-      listing.images) : 
-    [];
+  let images = [];
+  try {
+    if (listing.images) {
+      if (typeof listing.images === 'string') {
+        images = JSON.parse(listing.images);
+      } else if (Array.isArray(listing.images)) {
+        images = listing.images;
+      } else {
+        console.log("Unexpected images format:", listing.images);
+      }
+    }
+  } catch (e) {
+    console.error("Error parsing images:", e);
+  }
+  
+  console.log("Processed listing:", {
+    id: listing.id,
+    title: listing.title,
+    imageCount: images.length,
+    hasImages: images.length > 0
+  });
 
   return (
     <div className="border border-gray-200 rounded-lg p-4">

@@ -937,10 +937,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Store the listing ID in session for the confirmation page
       req.session.lastGeneratedListingId = listing.id;
-
-      res.json({
-        success: true,
-        listingId: listing.id
+      
+      // Explicitly save the session to ensure the ID is persisted
+      req.session.save((err) => {
+        if (err) {
+          console.error("Error saving session after listing creation:", err);
+        } else {
+          console.log(`Listing ${listing.id} successfully created and saved to session for user ${req.session.userId}`);
+        }
+        
+        res.json({
+          success: true,
+          listingId: listing.id
+        });
       });
     } catch (error) {
       console.error("Listing generation error:", error);
@@ -1020,22 +1029,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Check for authentication, but don't redirect or block - just set user ID if missing
     if (!req.session.userId) {
       req.session.userId = 1; // Set default user ID for test mode
+      console.log("[LAST LISTING] Setting default user ID to 1");
     }
+    
+    console.log("[LAST LISTING] Checking for last generated listing for user:", req.session.userId);
+    console.log("[LAST LISTING] Session data:", { 
+      userId: req.session.userId,
+      lastGeneratedListingId: req.session.lastGeneratedListingId || 'not set'
+    });
+    
     try {
       if (!req.session.lastGeneratedListingId) {
+        console.log("[LAST LISTING] No lastGeneratedListingId in session");
+        
+        // As a fallback, try to get the most recent listing for this user
+        const allListings = await storage.getListingsByUserId(req.session.userId);
+        console.log(`[LAST LISTING] Found ${allListings.length} listings for user ${req.session.userId}`);
+        
+        if (allListings.length > 0) {
+          // Sort by creation date descending and take the first one
+          const sortedListings = [...allListings].sort((a, b) => 
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+          
+          console.log("[LAST LISTING] Returning most recent listing as fallback:", sortedListings[0].id);
+          return res.json(sortedListings[0]);
+        }
+        
         return res.status(404).json({ message: "No recent listing found" });
       }
 
+      console.log(`[LAST LISTING] Looking up listing with ID: ${req.session.lastGeneratedListingId}`);
       const listing = await storage.getListing(req.session.lastGeneratedListingId);
       
       if (!listing) {
+        console.log(`[LAST LISTING] Listing ${req.session.lastGeneratedListingId} not found`);
         return res.status(404).json({ message: "Listing not found" });
       }
 
+      console.log(`[LAST LISTING] Successfully found listing ${listing.id}`);
       res.json(listing);
     } catch (error) {
       console.error("Get last listing error:", error);
-      res.status(500).json({ message: "Failed to get listing", error: error.message });
+      res.status(500).json({ 
+        message: "Failed to get listing", 
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
