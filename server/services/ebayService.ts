@@ -19,7 +19,14 @@ export class EbayService {
       ? `https://${deployedUrl}`
       : 'https://ai-powered-ebay-listing-assistant.replit.app';
     
-    this.redirectUri = process.env.EBAY_REDIRECT_URI || defaultRedirectUrl;
+    // Check if we should use an explicit callback path or root path
+    // Note: The eBay OAuth configuration will need to match this exactly
+    const usingRootCallback = true; // Set to true if eBay dev console is configured for root URL
+    
+    this.redirectUri = process.env.EBAY_REDIRECT_URI || 
+      (usingRootCallback 
+        ? defaultRedirectUrl // Root URL (which we now handle in routes.ts)
+        : `${defaultRedirectUrl}/api/auth/ebay/callback`); // Explicit callback path
     this.sandboxMode = process.env.EBAY_SANDBOX_MODE === 'true';
 
     if (!this.clientId || !this.clientSecret) {
