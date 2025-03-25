@@ -15,12 +15,13 @@ export class EbayService {
     // Use the current domain for redirect URI if not provided
     // This ensures it works on Replit and other environments
     const deployedUrl = process.env.REPLIT_DEPLOYMENT_DOMAIN || '';
+    // Always use the root URL for eBay callback since that's where we handle it
     const defaultRedirectUrl = deployedUrl 
       ? `https://${deployedUrl}`
-      : 'https://ai-powered-ebay-listing-assistant.replit.app';
+      : 'http://localhost:5000';
     
-    // Use our special callback route that will work in both dev and production
-    this.redirectUri = process.env.EBAY_REDIRECT_URI || `${defaultRedirectUrl}/ebay-callback`;
+    // Use root path as eBay callback handler
+    this.redirectUri = process.env.EBAY_REDIRECT_URI || defaultRedirectUrl;
     console.log(`[EBAY SERVICE] Using callback URL: ${this.redirectUri}`);
     this.sandboxMode = process.env.EBAY_SANDBOX_MODE === 'true';
 
