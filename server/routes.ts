@@ -31,6 +31,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     })
   );
+  
+  // Handle the direct-photos route for eBay OAuth callbacks
+  app.get("/direct-photos", (req: Request, res: Response, next: NextFunction) => {
+    console.log("Direct photos path accessed with query params:", req.query);
+    
+    // If there's no code, just continue to the normal React app which will handle the route
+    next();
+  });
+
+  // CRITICAL: Handle eBay OAuth callback at the root path since that's where eBay redirects
+  app.get("/", (req: Request, res: Response, next: NextFunction) => {
+    console.log("Root path accessed with query params:", req.query);
+    const code = req.query.code as string | undefined;
+    
+    if (code) {
+      console.log("eBay OAuth code detected in query params:", code.substring(0, 20) + '...');
+      // Serve the eBay success page that will handle the code processing via client-side JS
+      return res.sendFile(process.cwd() + '/server/public/ebay-success.html');
+    }
+    
+    // Not an OAuth callback, continue to normal routing
+    next();
+  });
 
   // Multer setup for file uploads
   const upload = multer({
@@ -56,85 +79,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ url: authUrl });
   });
   
-  // Direct handler for the /direct-photos route to handle eBay OAuth callback
-  app.get("/direct-photos", async (req: Request, res: Response) => {
-    console.log("[DIRECT PHOTOS ROUTE] Accessed with query params:", req.query);
-    
-    // Check if this is an eBay callback with a code
-    if (req.query.code && typeof req.query.code === 'string') {
-      console.log("[DIRECT PHOTOS ROUTE] Detected eBay auth code, processing");
-      
-      try {
-        // Exchange the code for access tokens
-        const code = req.query.code;
-        const tokenData = await ebayService.getAccessToken(code);
-        console.log("[DIRECT PHOTOS ROUTE] Successfully received tokens from eBay");
-        
-        // Create a new user or use existing session user
-        let user;
-        
-        if (!req.session.userId) {
-          // Create new user
-          user = await storage.createUser({
-            username: `ebay_user_${Date.now()}`,
-            password: `auth_${Math.random().toString(36).substring(2, 15)}`
-          });
-          console.log("[DIRECT PHOTOS ROUTE] Created new user with ID:", user.id);
-        } else {
-          // Update existing user
-          user = await storage.getUser(req.session.userId);
-          if (!user) {
-            throw new Error("User not found in session");
-          }
-          console.log("[DIRECT PHOTOS ROUTE] Using existing user with ID:", user.id);
-        }
-        
-        // Calculate token expiry
-        const expiryDate = new Date();
-        expiryDate.setSeconds(expiryDate.getSeconds() + tokenData.expires_in);
-        
-        // Update user with the tokens
-        user = await storage.updateUserEbayTokens(
-          user.id,
-          tokenData.access_token,
-          tokenData.refresh_token,
-          expiryDate
-        );
-        
-        // Set session variables
-        req.session.userId = user.id;
-        req.session.ebayToken = tokenData.access_token;
-        req.session.ebayRefreshToken = tokenData.refresh_token;
-        req.session.ebayTokenExpiry = expiryDate;
-        
-        // Save session
-        await new Promise<void>((resolve, reject) => {
-          req.session.save(err => {
-            if (err) {
-              console.error("[DIRECT PHOTOS ROUTE] Session save error:", err);
-              reject(err);
-            } else {
-              resolve();
-            }
-          });
-        });
-        
-        console.log("[DIRECT PHOTOS ROUTE] Authentication successful, serving DirectPhotoUpload page");
-        
-        // Set a flag in the URL to indicate authentication was successful
-        res.redirect('/?auth=success');
-      } catch (error) {
-        console.error("[DIRECT PHOTOS ROUTE] Error processing OAuth callback:", error);
-        
-        // Redirect to the error page with details
-        res.redirect(`/error?message=${encodeURIComponent(error instanceof Error ? error.message : String(error))}`);
-      }
-    } else {
-      console.log("[DIRECT PHOTOS ROUTE] No auth code detected, continuing to client app");
-      // If no code is present, just serve the React app
-      res.redirect('/');
-    }
-  });
+  // Direct handler for the /direct-photos route to handle eBay OAuth callback - removed to prevent conflicts
   
   // Static redirect route for eBay OAuth that should always work
   app.get("/ebay-oauth/callback", async (req: Request, res: Response) => {
@@ -1307,9 +1252,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         if (allListings.length > 0) {
           // Sort by creation date descending and take the first one
-          const sortedListings = [...allListings].sort((a, b) => 
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          );
+          const sortedListings = [...allListings].sort((a, b) => {
+            // Handle potential null dates by providing fallbacks
+            const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+            const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+            return dateB.getTime() - dateA.getTime();
+          });
           
           console.log("[LAST LISTING] Returning most recent listing as fallback:", sortedListings[0].id);
           return res.json(sortedListings[0]);
@@ -1378,12 +1326,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             description: listing.description,
             aspects: {
               "Condition": [listing.condition],
-              ...Object.fromEntries(
-                (listing.itemSpecifics || []).map(spec => {
-                  const key = Object.keys(spec)[0];
-                  return [key, [spec[key]]];
-                })
-              )
+              ...(listing.itemSpecifics && Array.isArray(listing.itemSpecifics) ? 
+                Object.fromEntries(
+                  listing.itemSpecifics.map((spec: Record<string, string>) => {
+                    const key = Object.keys(spec)[0];
+                    return [key, [spec[key]]];
+                  })
+                ) : {})
             },
             imageUrls: listing.images || []
           },

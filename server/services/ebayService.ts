@@ -9,24 +9,39 @@ export class EbayService {
   private sandboxMode: boolean;
 
   constructor() {
+    // Check for API keys and provide informative logs
     this.clientId = process.env.EBAY_CLIENT_ID || '';
+    if (!this.clientId) {
+      console.warn("[EBAY SERVICE WARNING] EBAY_CLIENT_ID is missing. Using test mode only.");
+    }
+    
     this.clientSecret = process.env.EBAY_CLIENT_SECRET || '';
+    if (!this.clientSecret) {
+      console.warn("[EBAY SERVICE WARNING] EBAY_CLIENT_SECRET is missing. Using test mode only.");
+    }
     
     // Use the current domain for redirect URI if not provided
     // This ensures it works on Replit and other environments
     const deployedUrl = process.env.REPLIT_DEPLOYMENT_DOMAIN || '';
     const defaultRedirectUrl = deployedUrl 
       ? `https://${deployedUrl}`
-      : 'https://ai-powered-ebay-listing-assistant.replit.app';
+      : 'https://pixly.replit.app';
     
-    // NEW: Using a dedicated fixed path for the callback that we'll handle on the server side
-    // This is much more reliable than relying on client-side interception
-    this.redirectUri = process.env.EBAY_REDIRECT_URI || `${defaultRedirectUrl}/ebay-oauth/callback`;
+    // Use environment variable if provided, otherwise fall back to a fixed path
+    this.redirectUri = process.env.EBAY_REDIRECT_URI || `${defaultRedirectUrl}/direct-photos`;
     console.log(`[EBAY SERVICE] Using callback URL: ${this.redirectUri}`);
     
     // Create a clear log message for the exact redirect URI
     console.log(`[EBAY SERVICE] IMPORTANT: Verify this exact URI is registered in eBay Dev Portal: ${this.redirectUri}`);
     this.sandboxMode = process.env.EBAY_SANDBOX_MODE === 'true';
+    
+    // Log API configuration status
+    console.log(`[EBAY SERVICE] API Configuration:
+      - Client ID: ${this.clientId ? '✓ Configured' : '✗ Missing'}
+      - Client Secret: ${this.clientSecret ? '✓ Configured' : '✗ Missing'}
+      - Redirect URI: ${this.redirectUri}
+      - Mode: ${this.sandboxMode ? 'Sandbox' : 'Production'}
+    `);
 
     if (!this.clientId || !this.clientSecret) {
       console.error('eBay API credentials are missing');
