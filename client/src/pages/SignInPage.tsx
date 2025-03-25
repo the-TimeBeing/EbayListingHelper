@@ -29,12 +29,7 @@ export default function SignInPage() {
       
       // Get the test login URL from the API
       const testLoginUrl = await getTestLoginUrl();
-      
-      // Display a message to the user that we're using test mode
-      console.log("Using test login mode with URL:", testLoginUrl + "-redirect");
-      
-      // Navigate directly to the test login redirect endpoint
-      window.location.href = testLoginUrl + "-redirect"; 
+      window.location.href = testLoginUrl + "-redirect"; // Use the redirect version
     } catch (error) {
       console.error("Test login error:", error);
       setIsTestLoading(false);
@@ -81,18 +76,13 @@ export default function SignInPage() {
             {isLoading ? "Connecting..." : "Sign in with eBay"}
           </Button>
           
-          <div className="p-3 mt-6 mb-3 bg-yellow-50 border border-yellow-300 rounded-md text-yellow-800 text-sm">
-            <p className="mb-2 font-semibold">⚠️ eBay OAuth Redirect Issues in Replit Environment</p>
-            <p>Due to Replit's preview environment limitations with external OAuth services, please use the test login below for development:</p>
-          </div>
-          
-          {/* Developer testing button - More prominent in Replit environment */}
+          {/* Developer testing button */}
           <Button
             onClick={handleTestLogin}
             disabled={isTestLoading}
-            className="w-full py-5 rounded-md bg-green-600 hover:bg-green-700 text-white font-semibold text-base"
+            className="w-full py-4 rounded-full bg-gray-700 hover:bg-gray-800 text-white"
           >
-            {isTestLoading ? "Connecting..." : "Use Test Login (For Replit Environment)"}
+            {isTestLoading ? "Connecting..." : "Developer Test Login"}
           </Button>
         </CardContent>
       </Card>
