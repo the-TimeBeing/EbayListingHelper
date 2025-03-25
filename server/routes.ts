@@ -958,15 +958,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Listing generation error:", error);
       
+      // Explicitly set and save the error state in the session
       req.session.processingProgress = {
         status: 'error',
         currentStep: 'error',
         stepsCompleted: 0,
         totalSteps: 5,
-        error: error.message || "Unknown error during listing generation"
+        error: error instanceof Error ? error.message : "Unknown error during listing generation"
       };
       
-      res.status(500).json({ message: "Failed to generate listing", error: error.message });
+      // Make sure to save the session before sending the response
+      req.session.save((err) => {
+        if (err) {
+          console.error("Error saving session after listing error:", err);
+        }
+        
+        // Send a more detailed error response
+        res.status(500).json({ 
+          message: "Failed to generate listing", 
+          error: error instanceof Error ? error.message : String(error),
+          errorDetails: error instanceof Error ? (error.stack || '') : ''
+        });
+      });
     }
   });
 
