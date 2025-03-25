@@ -71,7 +71,25 @@ export default function ProcessingPage() {
             });
             
             if (listingCheck.ok) {
-              navigate('/confirmation');
+              const listingData = await listingCheck.json();
+              console.log("[PROCESSING] Listing found:", listingData);
+              
+              if (listingData && listingData.id) {
+                // Redirect directly to the listing details page
+                console.log(`[PROCESSING] Redirecting to listing details page for ID: ${listingData.id}`);
+                toast({
+                  title: 'Success!',
+                  description: 'Your listing has been created successfully',
+                });
+                navigate(`/listing/${listingData.id}`);
+              } else {
+                console.error("[PROCESSING] Listing data is missing ID");
+                toast({
+                  title: 'Process completed',
+                  description: 'Your listing has been created, viewing all drafts.',
+                });
+                navigate('/draft-listings');
+              }
             } else {
               console.error("[PROCESSING] Can't find the listing after completion, redirecting to drafts");
               toast({

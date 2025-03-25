@@ -265,11 +265,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         console.log(`eBay debug authentication successful for user ${testUser.id}`);
         
-        // Return a success page with details
+        // Return a success page with details and auto-redirect
         res.send(`
           <html>
             <head>
               <title>eBay Auth Debug - Success</title>
+              <meta http-equiv="refresh" content="3;url=/direct-photos">
               <style>
                 body { font-family: Arial, sans-serif; padding: 2rem; line-height: 1.6; }
                 h1 { color: #0064D2; }
@@ -277,6 +278,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 .success { color: green; }
                 .error { color: red; }
                 .token { word-break: break-all; }
+                .redirect-message { margin-top: 30px; color: #666; }
+                .loading { display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(0,100,210,0.3); 
+                           border-radius: 50%; border-top-color: #0064D2; animation: spin 1s ease-in-out infinite; }
+                @keyframes spin { to { transform: rotate(360deg); } }
               </style>
             </head>
             <body>
@@ -298,12 +303,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 <li>Set up your session with valid eBay credentials</li>
               </ol>
               
-              <h2>Next Steps:</h2>
-              <p>You can now use the application normally:</p>
-              <ul>
-                <li><a href="/direct-photos">Upload Photos for a New Listing</a></li>
-                <li><a href="/draft-listings">View Draft Listings</a></li>
-              </ul>
+              <div class="redirect-message">
+                <p>Redirecting you to the photo upload page <span class="loading"></span></p>
+                <p>If you are not redirected automatically, <a href="/direct-photos">click here</a>.</p>
+              </div>
             </body>
           </html>
         `);
@@ -437,97 +440,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           throw new Error("Invalid authorization code");
         }
 
-        // Get eBay OAuth tokens
-        const tokenData = await ebayService.getAccessToken(code);
+        console.log("eBay code found, redirecting to debug page for easier processing");
         
-        // Generate a random username for first-time users
-        let userId = 0;
-        let user;
+        // Instead of processing the code directly, redirect to our debug tool
+        // This is a more reliable solution for handling the eBay auth flow
+        return res.redirect(`/debug-ebay-callback?code=${encodeURIComponent(code)}`);
         
-        // Create or find the user with these tokens
-        if (!req.session.userId) {
-          // This is a new user, create one with the eBay tokens
-          const username = `ebay_user_${Date.now()}`;
-          const insertUser = {
-            username: username,
-            // A fake password is required by our schema, but we won't use it for eBay auth
-            password: `ebay_pass_${Math.random().toString(36).substring(2, 15)}`, 
-            ebayToken: tokenData.access_token,
-            ebayRefreshToken: tokenData.refresh_token,
-            ebayTokenExpiry: new Date(Date.now() + tokenData.expires_in * 1000)
-          };
-          
-          user = await storage.createUser(insertUser);
-          userId = user.id;
-          console.log(`Created new user: ${username} with ID: ${userId}`);
-        } else {
-          // Existing user, update their tokens
-          userId = req.session.userId;
-          user = await storage.getUser(userId);
-          
-          if (!user) {
-            throw new Error("User not found");
-          }
-          
-          user = await storage.updateUserEbayTokens(
-            userId,
-            tokenData.access_token,
-            tokenData.refresh_token,
-            new Date(Date.now() + tokenData.expires_in * 1000)
-          );
-          
-          console.log(`Updated tokens for user ID: ${userId}`);
-        }
-        
-        // Store everything in the session
-        req.session.userId = userId;
-        req.session.ebayToken = tokenData.access_token;
-        req.session.ebayRefreshToken = tokenData.refresh_token;
-        req.session.ebayTokenExpiry = new Date(Date.now() + tokenData.expires_in * 1000);
-
-        // Save the session explicitly
-        req.session.save((err) => {
-          if (err) {
-            console.error("Error saving session:", err);
-            return res.status(500).send("Session error");
-          }
-          
-          // Instead of redirecting, serve a success page with a meta refresh to photos
-          res.send(`
-            <!DOCTYPE html>
-            <html>
-              <head>
-                <title>eBay Authentication Successful</title>
-                <meta http-equiv="refresh" content="3;url=/photos?auth=1">
-                <style>
-                  body { font-family: Arial, sans-serif; text-align: center; padding-top: 50px; line-height: 1.6; }
-                  h1 { color: #0064D2; }
-                  .success-icon { font-size: 48px; color: green; margin: 20px 0; }
-                  .container { max-width: 600px; margin: 0 auto; }
-                  .redirect-message { margin-top: 30px; color: #666; }
-                  .loading { display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(0,100,210,0.3); 
-                             border-radius: 50%; border-top-color: #0064D2; animation: spin 1s ease-in-out infinite; }
-                  @keyframes spin { to { transform: rotate(360deg); } }
-                </style>
-              </head>
-              <body>
-                <div class="container">
-                  <h1>eBay Authentication Successful!</h1>
-                  <div class="success-icon">✅</div>
-                  <p>You have successfully authenticated with eBay.</p>
-                  <p>Your account has been connected and you can now create listings.</p>
-                  <div class="redirect-message">
-                    <p>Redirecting to the photo upload page <span class="loading"></span></p>
-                    <p>If you are not redirected automatically, <a href="/photos?auth=1">click here</a>.</p>
-                  </div>
-                </div>
-              </body>
-            </html>
-          `);
-        });
       } catch (error) {
-        console.error("eBay auth error:", error);
-        res.status(500).json({ message: "Authentication failed", error: error instanceof Error ? error.message : String(error) });
+        console.error("eBay auth redirect error:", error);
+        res.status(500).json({ message: "Authentication redirect failed", error: error instanceof Error ? error.message : String(error) });
       }
       return; // Important to stop further processing
     }
