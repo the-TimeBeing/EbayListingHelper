@@ -10,6 +10,7 @@ declare module 'express-session' {
     ebayTokenExpiry?: Date;
     photos?: string[];
     hasUploadedPhotos?: boolean; // Flag to track if photos have been uploaded
+    isTestSession?: boolean; // Flag to indicate if this is a test user session
     processingProgress?: {
       status: string;
       currentStep: string;
