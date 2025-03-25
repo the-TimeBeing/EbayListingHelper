@@ -7,6 +7,7 @@ import { openaiService } from "./services/openaiService";
 import { saveBase64Image, getImageAsBase64, cleanupTempFiles, isValidBase64Image } from "./utils/fileUtils";
 import { z } from "zod";
 import { insertListingSchema } from "@shared/schema";
+import { EbayItemSummary, EbaySoldItem } from "@shared/types";
 import session from 'express-session';
 import MemoryStore from 'memorystore';
 
@@ -272,61 +273,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalSteps: 5
       };
 
-      // 1. Analyze the first photo with OpenAI Vision to get product details
       const mainPhoto = req.session.photos[0];
-      const imageAnalysis = await openaiService.analyzeImage(mainPhoto);
       
+      // Update progress
       req.session.processingProgress = {
         ...req.session.processingProgress,
         currentStep: 'searching_similar_items',
         stepsCompleted: 1
       };
 
-      // 2. Use eBay search by image to find similar items
-      let searchResults;
+      // Use eBay search by image to find similar items
+      let imageSearchResults: EbayItemSummary[] = [];
+      let soldItems: EbaySoldItem[] = [];
+      
       try {
         console.log("Searching eBay by image...");
-        searchResults = await ebayService.searchByImage(req.session.userId, mainPhoto);
-        console.log(`Found ${searchResults.length} similar items on eBay`);
+        imageSearchResults = await ebayService.searchByImage(req.session.userId, mainPhoto);
+        console.log(`Found ${imageSearchResults.length} similar items through eBay image search`);
         
-        if (searchResults.length > 0) {
+        if (imageSearchResults.length > 0) {
           // Extract keywords from the first search result title
-          const keywords = searchResults[0].title.split(' ').slice(0, 3).join(' ');
+          const keywords = imageSearchResults[0].title.split(' ').slice(0, 3).join(' ');
           
           // Now use these keywords to search for sold items
-          console.log(`Searching for sold items with keywords: ${keywords}`);
-          const soldItems = await ebayService.getSoldItems(req.session.userId, keywords);
+          console.log(`Searching for sold items with keywords: "${keywords}"`);
+          soldItems = await ebayService.getSoldItems(req.session.userId, keywords);
           console.log(`Found ${soldItems.length} sold items on eBay`);
-          
-          // If sold items were found, use them instead of the image search results
-          if (soldItems.length > 0) {
-            searchResults = soldItems;
-            console.log("Using sold items for pricing and details");
-          }
         }
       } catch (error) {
         console.error("eBay search error:", error);
-        // Fallback to mock data if eBay search fails
-        searchResults = [
-          {
-            itemId: '123456789',
-            title: 'Nike Air Zoom Pegasus 38 Men\'s Running Shoes',
-            price: { value: '64.99', currency: 'USD' },
-            category: 'Men\'s Athletic Shoes'
-          }
-        ];
-        console.log("Using fallback mock data due to eBay search error");
       }
 
+      // Update progress
       req.session.processingProgress = {
         ...req.session.processingProgress,
         currentStep: 'generating_content',
         stepsCompleted: 2
       };
 
-      // 3. Generate listing content with ChatGPT
+      // Generate product details from eBay results or analyze image with OpenAI
+      let productDetails = "";
+      if (imageSearchResults.length === 0 && soldItems.length === 0) {
+        console.log("No eBay results found, using OpenAI for image analysis");
+        const imageAnalysis = await openaiService.analyzeImage(mainPhoto);
+        productDetails = imageAnalysis;
+      } else {
+        // Use our new method to generate product details from eBay results
+        productDetails = openaiService.generateProductDetailsFromEbayResults(
+          imageSearchResults,
+          soldItems
+        );
+      }
+
+      // Generate listing content based on the data we have
       const listingContent = await openaiService.generateListingContent(
-        `${imageAnalysis}\nSimilar items found: ${searchResults.map(r => r.title).join(', ')}`,
+        productDetails,
         condition,
         conditionLevel
       );
@@ -337,10 +338,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         stepsCompleted: 3
       };
 
-      // 4. Determine optimal price based on similar items
-      const suggestedPrice = searchResults.length > 0 
-        ? searchResults[0].price.value 
-        : '0.00';
+      // Determine optimal price based on sold items or similar items
+      let suggestedPrice = '0.00';
+      
+      if (soldItems.length > 0) {
+        // Calculate average of sold prices
+        const prices = soldItems
+          .filter(item => item.soldPrice?.value)
+          .map(item => parseFloat(item.soldPrice.value));
+          
+        if (prices.length > 0) {
+          const avgPrice = prices.reduce((sum, price) => sum + price, 0) / prices.length;
+          suggestedPrice = avgPrice.toFixed(2);
+        } else if (soldItems[0].price) {
+          suggestedPrice = soldItems[0].price.value;
+        }
+      } else if (imageSearchResults.length > 0 && imageSearchResults[0].price) {
+        suggestedPrice = imageSearchResults[0].price.value;
+      }
 
       req.session.processingProgress = {
         ...req.session.processingProgress,
@@ -348,20 +363,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         stepsCompleted: 4
       };
 
-      // 5. Create a draft listing object
+      // Extract category information
       let categoryName = '';
       
-      // Extract category from search results
-      if (searchResults.length > 0) {
-        const item = searchResults[0];
-        // Check if it's an EbayItemSummary with categories
-        if ('categories' in item && item.categories && item.categories.length > 0) {
-          categoryName = item.categories[0].categoryName;
-        } 
-        // Or if it's our mock data with direct category property
-        else if ('category' in item) {
-          categoryName = item.category;
-        }
+      // First try to get category from sold items
+      if (soldItems.length > 0 && soldItems[0].categories && soldItems[0].categories.length > 0) {
+        categoryName = soldItems[0].categories[0].categoryName;
+      } 
+      // Then try image search results
+      else if (imageSearchResults.length > 0 && imageSearchResults[0].categories && imageSearchResults[0].categories.length > 0) {
+        categoryName = imageSearchResults[0].categories[0].categoryName;
       }
       
       const draftListing = {

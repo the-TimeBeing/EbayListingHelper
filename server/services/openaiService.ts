@@ -5,7 +5,7 @@ import { ChatGPTListingContent, EbayItemSummary, EbaySoldItem } from "@shared/ty
 const MODEL = "gpt-4o";
 
 export class OpenAIService {
-  private openai: OpenAI;
+  private openai!: OpenAI; // The ! tells TypeScript we'll ensure this is initialized before use
   private useOpenAI: boolean;
 
   constructor() {
