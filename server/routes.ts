@@ -144,9 +144,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Test authentication endpoint with redirect (for simpler client implementation)
+  // Test authentication endpoint with redirect - ENHANCED FOR REPLIT ENVIRONMENT
   app.get("/api/auth/test-login-redirect", async (req: Request, res: Response) => {
     try {
+      console.log("Test login redirect route accessed with query params:", req.query);
+      
       // Check if we already have a test user
       let user = await storage.getUserByUsername("test_user");
       
@@ -155,42 +157,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("Creating test user in storage");
         user = await storage.createUser({
           username: "test_user",
-          password: "test_password",
-          ebayToken: "mock-token-for-testing",
-          ebayRefreshToken: "mock-refresh-token",
-          ebayTokenExpiry: new Date(Date.now() + 3600 * 1000)
+          password: "test_password", 
+          ebayToken: "replit-mock-token-for-testing",
+          ebayRefreshToken: "replit-mock-refresh-token",
+          ebayTokenExpiry: new Date(Date.now() + 24 * 3600 * 1000) // 24 hours expiry for testing
         });
+        console.log("Created new test user with ID:", user.id);
       } else {
-        // Update tokens for the existing test user
-        console.log("Updating tokens for existing test user");
+        // Update tokens for the existing test user with fresh 24-hour tokens
+        console.log("Updating tokens for existing test user ID:", user.id);
         user = await storage.updateUserEbayTokens(
           user.id,
-          "mock-token-for-testing",
-          "mock-refresh-token",
-          new Date(Date.now() + 3600 * 1000)
+          "replit-mock-token-for-testing-" + new Date().toISOString(),
+          "replit-mock-refresh-token",
+          new Date(Date.now() + 24 * 3600 * 1000)
         );
+        console.log("Updated test user tokens");
       }
       
-      // Set session variables
-      req.session.userId = user.id;
-      req.session.ebayToken = user.ebayToken;
-      req.session.ebayRefreshToken = user.ebayRefreshToken;
-      req.session.ebayTokenExpiry = user.ebayTokenExpiry;
+      // Clear session first to avoid any stale data
+      req.session.destroy(() => {
+        // Create a fresh session
+        req.session = {} as Express.Session;
       
-      console.log("Test login (redirect) successful, session:", {
-        userId: req.session.userId,
-        hasToken: !!req.session.ebayToken
-      });
-      
-      // Save the session and redirect
-      req.session.save((err) => {
-        if (err) {
-          console.error("Error saving session:", err);
-          return res.status(500).send("Session error");
-        }
+        // Set session variables
+        req.session.userId = user.id;
+        req.session.ebayToken = user.ebayToken || "replit-mock-token-backup";
+        req.session.ebayRefreshToken = user.ebayRefreshToken || "replit-mock-refresh-token-backup";
+        req.session.ebayTokenExpiry = user.ebayTokenExpiry || new Date(Date.now() + 24 * 3600 * 1000);
         
-        // Directly redirect to our direct photos page that bypasses auth checks
-        res.redirect('/direct-photos');
+        console.log("Test login details:", {
+          userId: req.session.userId,
+          hasToken: !!req.session.ebayToken,
+          tokenExpiryTime: req.session.ebayTokenExpiry
+        });
+        
+        // Force a true authentication status
+        req.session.isAuthenticated = true;
+        
+        // Save the session and redirect
+        req.session.save((err) => {
+          if (err) {
+            console.error("Error saving session:", err);
+            return res.status(500).send("Session error");
+          }
+          
+          console.log("Session saved successfully, redirecting to direct photos page");
+          // Directly redirect to our direct photos page that bypasses auth checks
+          res.redirect('/direct-photos');
+        });
       });
     } catch (error) {
       console.error("Test login error:", error);
