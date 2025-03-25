@@ -19,10 +19,9 @@ export class EbayService {
       ? `https://${deployedUrl}`
       : 'https://ai-powered-ebay-listing-assistant.replit.app';
     
-    // IMPORTANT: We're specifically setting the redirect to the root URL
-    // eBay requires an exact match between what's registered in the dev portal
-    // and what we use in the API call.
-    this.redirectUri = process.env.EBAY_REDIRECT_URI || `${defaultRedirectUrl}/`;
+    // NEW: Using a dedicated fixed path for the callback that we'll handle on the server side
+    // This is much more reliable than relying on client-side interception
+    this.redirectUri = process.env.EBAY_REDIRECT_URI || `${defaultRedirectUrl}/ebay-oauth/callback`;
     console.log(`[EBAY SERVICE] Using callback URL: ${this.redirectUri}`);
     
     // Create a clear log message for the exact redirect URI
