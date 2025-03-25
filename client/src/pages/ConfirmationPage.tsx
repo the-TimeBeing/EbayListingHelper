@@ -15,7 +15,29 @@ export default function ConfirmationPage() {
 
   const { data: listing, isLoading, error } = useQuery<Listing>({
     queryKey: ['/api/listings/last/generated'],
-    retry: false
+    retry: 3,
+    retryDelay: 1000,
+    queryFn: async () => {
+      try {
+        console.log("[CONFIRMATION] Fetching last generated listing");
+        const response = await fetch('/api/listings/last/generated', {
+          credentials: 'include'
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`[CONFIRMATION] Error fetching listing: ${response.status}`, errorText);
+          throw new Error(`Failed to fetch listing: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log("[CONFIRMATION] Successfully fetched listing:", data);
+        return data;
+      } catch (err) {
+        console.error("[CONFIRMATION] Error in query function:", err);
+        throw err;
+      }
+    }
   });
 
   const handleViewOnEbay = async () => {
@@ -68,8 +90,37 @@ export default function ConfirmationPage() {
   }
 
   if (error || !listing) {
-    navigate('/error');
-    return null;
+    console.log("[CONFIRMATION] Error or no listing data, showing error UI");
+    return (
+      <div className="container mx-auto px-4 py-6 max-w-md">
+        <Card className="mb-6">
+          <CardContent className="p-6 text-center">
+            <div className="mb-6">
+              <svg className="w-12 h-12 mx-auto text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-semibold mb-4">Something went wrong</h2>
+            <p className="text-gray-600 mb-6">We couldn't retrieve your listing details. Please check your draft listings to see if it was created.</p>
+            <div className="flex flex-col space-y-3">
+              <Button
+                onClick={() => navigate('/draft-listings')}
+                className="py-3 rounded-full bg-[#0064d2] hover:opacity-90 text-white font-semibold"
+              >
+                View Draft Listings
+              </Button>
+              <Button
+                onClick={() => navigate('/direct-photos')}
+                variant="outline"
+                className="py-3 rounded-full border-2 border-[#0064d2] text-[#0064d2] font-semibold"
+              >
+                Create New Listing
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (

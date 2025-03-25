@@ -25,35 +25,77 @@ export default function ProcessingPage() {
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
     let timeoutId: NodeJS.Timeout;
-
+    let pollCount = 0;
+    const maxPolls = 30; // Maximum number of polls before giving up
+    
     const checkProgress = async () => {
       try {
+        console.log("[PROCESSING] Checking progress...");
+        pollCount++;
+        
+        if (pollCount > maxPolls) {
+          console.warn("[PROCESSING] Maximum poll attempts reached");
+          clearInterval(intervalId);
+          toast({
+            title: 'Process timed out',
+            description: 'Please check your draft listings to see if your listing was created successfully.',
+            variant: 'destructive',
+          });
+          navigate('/draft-listings');
+          return;
+        }
+        
         const response = await fetch('/api/listings/progress', {
           credentials: 'include'
         });
         
         if (!response.ok) {
-          throw new Error('Failed to fetch progress');
+          console.error(`[PROCESSING] Progress check failed with status ${response.status}`);
+          const errorText = await response.text();
+          console.error(`[PROCESSING] Error response:`, errorText);
+          throw new Error(`Failed to fetch progress: ${response.status}`);
         }
         
         const data = await response.json();
+        console.log(`[PROCESSING] Progress update: ${data.status}, step: ${data.currentStep}, completed: ${data.stepsCompleted}/${data.totalSteps}`);
         setProgress(data);
         
         if (data.status === 'completed') {
+          console.log("[PROCESSING] Process completed, navigating to confirmation page");
           clearInterval(intervalId);
-          // Navigate to confirmation page after completion
-          navigate('/confirmation');
+          
+          // First check if the last generated listing ID is actually set
+          try {
+            const listingCheck = await fetch('/api/listings/last/generated', {
+              credentials: 'include'
+            });
+            
+            if (listingCheck.ok) {
+              navigate('/confirmation');
+            } else {
+              console.error("[PROCESSING] Can't find the listing after completion, redirecting to drafts");
+              toast({
+                title: 'Process completed',
+                description: 'Your listing has been created, viewing all drafts.',
+              });
+              navigate('/draft-listings');
+            }
+          } catch (e) {
+            console.error("[PROCESSING] Error checking listing after completion:", e);
+            navigate('/draft-listings');
+          }
         } else if (data.status === 'error') {
+          console.error("[PROCESSING] Process error:", data.error);
           clearInterval(intervalId);
           toast({
             title: 'Error',
-            description: data.error || 'Something went wrong',
+            description: data.error || 'Something went wrong during processing',
             variant: 'destructive',
           });
-          navigate('/error');
+          navigate('/draft-listings'); // Send to drafts instead of error page
         }
       } catch (error) {
-        console.error('Error checking progress:', error);
+        console.error('[PROCESSING] Error checking progress:', error);
       }
     };
 
