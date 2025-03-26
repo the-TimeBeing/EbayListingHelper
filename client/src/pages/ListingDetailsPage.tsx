@@ -69,7 +69,7 @@ export default function ListingDetailsPage() {
     };
 
     fetchListing();
-  }, [match, params, navigate, toast]);
+  }, [params.id, navigate, toast]);
 
   const handlePushToEbay = async () => {
     if (!listing) return;
