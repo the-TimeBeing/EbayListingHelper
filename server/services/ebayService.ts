@@ -322,11 +322,26 @@ export class EbayService {
       // Step 1: Create inventory item
       const inventoryItemSku = `sku-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
       
-      // Make sure condition is a string for eBay API
-      if (listingData.inventory_item && listingData.inventory_item.condition) {
-        listingData.inventory_item.condition = String(listingData.inventory_item.condition);
+      // Prepare a clean copy of the inventory item data for the API
+      const inventoryItemData = { ...listingData.inventory_item };
+      
+      // Make sure condition is a string for eBay API and is properly formatted
+      if (inventoryItemData.condition) {
+        // First ensure it's a string
+        inventoryItemData.condition = String(inventoryItemData.condition);
+        
+        // Validate that it's a valid eBay condition ID
+        const validConditionIds = ["1000", "1500", "1750", "2000", "2500", "3000", "4000", "5000", "6000", "7000"];
+        if (!validConditionIds.includes(inventoryItemData.condition)) {
+          console.warn(`Invalid condition ID: ${inventoryItemData.condition}. Defaulting to 1000 (New)`);
+          inventoryItemData.condition = "1000";
+        }
       }
       
+      // Log the final data being sent to eBay
+      console.log("Sending inventory item data to eBay:", JSON.stringify(inventoryItemData, null, 2));
+      
+      // Make the API call with the validated data
       const inventoryItemResponse = await fetch(`${this.getBaseUrl()}/sell/inventory/v1/inventory_item/${inventoryItemSku}`, {
         method: 'PUT',
         headers: {
@@ -334,18 +349,36 @@ export class EbayService {
           'Content-Type': 'application/json',
           'Content-Language': 'en-US'
         },
-        body: JSON.stringify(listingData.inventory_item)
+        body: JSON.stringify(inventoryItemData)
       });
 
       if (!inventoryItemResponse.ok) {
         let errorMessage = "";
+        let errorDetail: Record<string, any> = {};
         try {
           const errorJson = await inventoryItemResponse.json();
-          errorMessage = JSON.stringify(errorJson);
+          errorDetail = errorJson as Record<string, any>;
+          errorMessage = JSON.stringify(errorJson, null, 2);
         } catch (e) {
           errorMessage = await inventoryItemResponse.text();
         }
         console.error("eBay inventory item creation failed:", errorMessage);
+        
+        // Check for specific error types and provide more helpful messages
+        if (typeof errorDetail === 'object' && errorDetail !== null) {
+          // Handle specific eBay API error cases
+          if ('errors' in errorDetail && Array.isArray(errorDetail.errors)) {
+            const ebayErrors = errorDetail.errors;
+            if (ebayErrors.length > 0) {
+              const mainError = ebayErrors[0];
+              console.error("eBay specific error:", mainError);
+              
+              // Build a more specific error message
+              throw new Error(`eBay error: ${mainError.message || 'Unknown eBay error'}`);
+            }
+          }
+        }
+        
         throw new Error(`eBay inventory item creation failed: ${errorMessage}`);
       }
       
@@ -356,7 +389,7 @@ export class EbayService {
         sku: inventoryItemSku,
         marketplaceId: "EBAY_US",
         format: "FIXED_PRICE",
-        listingDescription: listingData.inventory_item.product.description,
+        listingDescription: inventoryItemData.product.description,
         pricingSummary: {
           price: {
             value: listingData.offer.pricingSummary.price.value,
@@ -396,22 +429,51 @@ export class EbayService {
 
       if (!offerResponse.ok) {
         let errorMessage = "";
+        let errorDetail = {};
         try {
           const errorJson = await offerResponse.json();
-          errorMessage = JSON.stringify(errorJson);
+          errorDetail = errorJson;
+          errorMessage = JSON.stringify(errorJson, null, 2);
         } catch (e) {
           errorMessage = await offerResponse.text();
         }
         console.error("eBay offer creation failed:", errorMessage);
+        
+        // Check for specific eBay API error cases
+        if (typeof errorDetail === 'object' && errorDetail !== null) {
+          if ('errors' in errorDetail && Array.isArray(errorDetail.errors)) {
+            const ebayErrors = errorDetail.errors;
+            if (ebayErrors.length > 0) {
+              const mainError = ebayErrors[0];
+              console.error("eBay specific offer error:", mainError);
+              
+              // Build a more specific error message
+              throw new Error(`eBay offer error: ${mainError.message || 'Unknown eBay error'}`);
+            }
+          }
+        }
+        
         throw new Error(`eBay offer creation failed: ${errorMessage}`);
       }
       
+      // Parse the successful response
       let offerId = '';
       try {
-        const offerResponseData = await offerResponse.json() as { offerId?: string };
-        offerId = offerResponseData.offerId || `offer-${Date.now()}`;
+        const offerResponseData = await offerResponse.json();
+        console.log("Full offer response:", JSON.stringify(offerResponseData, null, 2));
+        
+        // Ensure we get a valid offerId or create a predictable fallback
+        if (offerResponseData && typeof offerResponseData === 'object' && 'offerId' in offerResponseData) {
+          offerId = offerResponseData.offerId;
+        } else {
+          // If we didn't get an offerId but the request was successful, generate a placeholder
+          // This should rarely happen since the response should contain an offerId if successful
+          console.warn("No offerId found in eBay response despite successful request");
+          offerId = `offer-${Date.now()}`;
+        }
       } catch (e) {
         console.error("Failed to parse offer response:", e);
+        // If we couldn't parse the JSON at all, use an error fallback
         offerId = `offer-error-${Date.now()}`;
       }
       
