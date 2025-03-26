@@ -353,10 +353,35 @@ export class EbayService {
       
       // Step 2: Create an offer for the inventory item
       const offerData = {
-        ...listingData.offer,
-        sku: inventoryItemSku, 
+        sku: inventoryItemSku,
         marketplaceId: "EBAY_US",
-        format: "FIXED_PRICE"
+        format: "FIXED_PRICE",
+        listingDescription: listingData.inventory_item.product.description,
+        pricingSummary: {
+          price: {
+            value: listingData.offer.pricingSummary.price.value,
+            currency: "USD"
+          }
+        },
+        categoryId: "139971", // Default to Video Game Accessories
+        listingPolicies: {
+          fulfillmentPolicy: {
+            shippingCost: {
+              value: 5.00,
+              currency: "USD"
+            }
+          },
+          paymentPolicy: {
+            paymentMethod: "PAYPAL"
+          },
+          returnPolicy: {
+            returnsAccepted: true,
+            returnPeriod: {
+              value: 30,
+              unit: "DAY"
+            }
+          }
+        }
       };
       
       const offerResponse = await fetch(`${this.getBaseUrl()}/sell/inventory/v1/offer`, {

@@ -30,7 +30,7 @@ export default function ListingDetailsPage() {
       try {
         const id = parseInt(params.id);
         console.log(`[LISTING DETAILS] Fetching listing with ID: ${id}`);
-        
+
         if (isNaN(id)) {
           console.error("[LISTING DETAILS] Invalid listing ID:", params.id);
           throw new Error("Invalid listing ID");
@@ -38,29 +38,29 @@ export default function ListingDetailsPage() {
 
         // First, ensure we have authentication/session set up
         await apiRequest("GET", "/api/auth/status");
-        
+
         const response = await apiRequest("GET", `/api/listings/${id}`);
         console.log(`[LISTING DETAILS] Response status: ${response.status}`);
-        
+
         if (!response.ok) {
           const errorText = await response.text();
           console.error(`[LISTING DETAILS] Error response (${response.status}):`, errorText);
           throw new Error(`Error ${response.status}: ${errorText}`);
         }
-        
+
         const result = await response.json();
         console.log("[LISTING DETAILS] Successfully fetched listing:", result.id);
         setListing(result as Listing);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         console.error("[LISTING DETAILS] Error fetching listing:", errorMessage);
-        
+
         toast({
           title: "Error",
           description: "Failed to fetch listing details. Please try again.",
           variant: "destructive"
         });
-        
+
         // Delay navigation to allow the user to see the toast
         setTimeout(() => navigate("/draft-listings"), 1500);
       } finally {
@@ -73,27 +73,27 @@ export default function ListingDetailsPage() {
 
   const handlePushToEbay = async () => {
     if (!listing) return;
-    
+
     try {
       // Show specific loading state for push action
       setIsPushing(true);
-      
+
       console.log(`[LISTING DETAILS] Pushing listing ${listing.id} to eBay`);
       const response = await apiRequest("POST", `/api/listings/${listing.id}/push-to-ebay`);
       const result = await response.json();
-      
+
       if (!response.ok || result.success === false) {
         // Handle error response with more detail
         console.error("[LISTING DETAILS] Failed to push to eBay:", result);
         const errorMsg = result.error || result.message || "Failed to push listing to eBay";
         toast({
           title: "eBay Push Failed",
-          description: `${errorMsg}. Please check your eBay account connection and try again.`,
+          description: `${errorMsg}. Please ensure all required fields are filled and try again.`,
           variant: "destructive"
         });
         return;
       }
-      
+
       // Verify we have a draft ID before claiming success
       if (!result.listing?.ebayDraftId?.startsWith('offer-')) {
         console.error("[LISTING DETAILS] Invalid eBay draft ID:", result);
@@ -104,16 +104,16 @@ export default function ListingDetailsPage() {
         });
         return;
       }
-      
+
       console.log("[LISTING DETAILS] Successfully pushed to eBay:", result);
       toast({
         title: "Success!",
         description: `Listing pushed to eBay as draft #${result.listing.ebayDraftId}`,
       });
-      
+
       if (result && typeof result === 'object' && 'listing' in result) {
         const updatedListing = result.listing as Partial<Listing>;
-        
+
         setListing({
           ...listing,
           ebayDraftId: updatedListing.ebayDraftId || listing.ebayDraftId,
@@ -122,7 +122,7 @@ export default function ListingDetailsPage() {
       }
     } catch (error) {
       console.error("[LISTING DETAILS] Error pushing to eBay:", error);
-      
+
       // Show more detailed error information if available
       let errorMessage = "Failed to push listing to eBay";
       if (error instanceof Error) {
@@ -130,7 +130,7 @@ export default function ListingDetailsPage() {
       } else if (typeof error === 'string') {
         errorMessage = error;
       }
-      
+
       toast({
         title: "eBay Connection Error",
         description: errorMessage,
@@ -150,7 +150,7 @@ export default function ListingDetailsPage() {
           </Button>
           <Skeleton className="h-8 w-48" />
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div>
             <Skeleton className="h-80 w-full rounded-lg mb-4" />
@@ -160,7 +160,7 @@ export default function ListingDetailsPage() {
               ))}
             </div>
           </div>
-          
+
           <div className="space-y-6">
             <Skeleton className="h-10 w-3/4" />
             <Skeleton className="h-6 w-1/3" />
@@ -199,7 +199,7 @@ export default function ListingDetailsPage() {
         </Button>
         <h1 className="text-2xl font-bold">Listing Details</h1>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Image Gallery */}
         <div>
@@ -226,7 +226,7 @@ export default function ListingDetailsPage() {
               <Expand className="h-5 w-5" />
             </Button>
           </div>
-          
+
           {listing.images && 
            typeof listing.images === 'object' && 
            Array.isArray(listing.images) && 
@@ -248,18 +248,18 @@ export default function ListingDetailsPage() {
             </div>
           )}
         </div>
-        
+
         {/* Listing Details */}
         <div>
           <h2 className="text-2xl font-bold mb-3">{listing.title}</h2>
           <p className="text-2xl font-semibold text-green-600 mb-6">${listing.price}</p>
-          
+
           <div className="mb-6">
             <h3 className="font-semibold mb-2">Condition</h3>
             <p className="text-gray-700 mb-1">{listing.condition}</p>
             <p className="text-sm text-gray-500">{listing.conditionDescription}</p>
           </div>
-          
+
           <Tabs defaultValue="description" className="mb-8">
             <TabsList>
               <TabsTrigger value="description">Description</TabsTrigger>
@@ -307,7 +307,7 @@ export default function ListingDetailsPage() {
               </div>
             </TabsContent>
           </Tabs>
-          
+
           <div className="flex flex-wrap gap-4">
             {listing.status === 'pushed_to_ebay' ? (
               <Button
@@ -337,7 +337,7 @@ export default function ListingDetailsPage() {
                 Push to eBay
               </Button>
             )}
-            
+
             <Button
               variant="outline"
               className="flex items-center gap-2"
