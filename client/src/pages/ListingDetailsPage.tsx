@@ -82,12 +82,24 @@ export default function ListingDetailsPage() {
       const response = await apiRequest("POST", `/api/listings/${listing.id}/push-to-ebay`);
       const result = await response.json();
       
-      if (result.success === false) {
-        // Handle error response
+      if (!response.ok || result.success === false) {
+        // Handle error response with more detail
         console.error("[LISTING DETAILS] Failed to push to eBay:", result);
+        const errorMsg = result.error || result.message || "Failed to push listing to eBay";
         toast({
           title: "eBay Push Failed",
-          description: result.message || "Failed to push listing to eBay. Please check your eBay account connection.",
+          description: `${errorMsg}. Please check your eBay account connection and try again.`,
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Verify we have a draft ID before claiming success
+      if (!result.listing?.ebayDraftId?.startsWith('offer-')) {
+        console.error("[LISTING DETAILS] Invalid eBay draft ID:", result);
+        toast({
+          title: "eBay Push Failed",
+          description: "Failed to create eBay draft listing. The response from eBay was invalid.",
           variant: "destructive"
         });
         return;
@@ -96,7 +108,7 @@ export default function ListingDetailsPage() {
       console.log("[LISTING DETAILS] Successfully pushed to eBay:", result);
       toast({
         title: "Success!",
-        description: "Listing pushed to eBay as a draft",
+        description: `Listing pushed to eBay as draft #${result.listing.ebayDraftId}`,
       });
       
       if (result && typeof result === 'object' && 'listing' in result) {
