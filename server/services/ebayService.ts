@@ -316,22 +316,65 @@ export class EbayService {
   async createDraftListing(userId: number, listingData: any): Promise<string> {
     const accessToken = await this.ensureValidToken(userId);
     
-    const response = await fetch(`${this.getBaseUrl()}/sell/inventory/v1/inventory_item`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(listingData)
-    });
+    try {
+      console.log("Creating eBay draft listing with data:", JSON.stringify(listingData, null, 2));
+      
+      // Step 1: Create inventory item
+      const inventoryItemSku = `sku-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      
+      const inventoryItemResponse = await fetch(`${this.getBaseUrl()}/sell/inventory/v1/inventory_item/${inventoryItemSku}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'Content-Language': 'en-US'
+        },
+        body: JSON.stringify(listingData.inventory_item)
+      });
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`eBay draft listing creation failed: ${error}`);
+      if (!inventoryItemResponse.ok) {
+        const errorText = await inventoryItemResponse.text();
+        console.error("eBay inventory item creation failed:", errorText);
+        throw new Error(`eBay inventory item creation failed: ${errorText}`);
+      }
+      
+      console.log(`Successfully created eBay inventory item with SKU: ${inventoryItemSku}`);
+      
+      // Step 2: Create an offer for the inventory item
+      const offerData = {
+        ...listingData.offer,
+        sku: inventoryItemSku, 
+        marketplaceId: "EBAY_US",
+        format: "FIXED_PRICE"
+      };
+      
+      const offerResponse = await fetch(`${this.getBaseUrl()}/sell/inventory/v1/offer`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'Content-Language': 'en-US'
+        },
+        body: JSON.stringify(offerData)
+      });
+
+      if (!offerResponse.ok) {
+        const errorText = await offerResponse.text();
+        console.error("eBay offer creation failed:", errorText);
+        throw new Error(`eBay offer creation failed: ${errorText}`);
+      }
+      
+      const offerResponseData = await offerResponse.json() as {offerId: string};
+      const offerId = offerResponseData.offerId;
+      
+      console.log(`Successfully created eBay offer with ID: ${offerId}`);
+      
+      // Return the offer ID as the draft ID
+      return offerId || '';
+    } catch (error) {
+      console.error("Error in createDraftListing:", error);
+      throw error;
     }
-
-    const data = await response.json();
-    return data.draftId || '';
   }
 
   async uploadImage(userId: number, imageBase64: string): Promise<string> {

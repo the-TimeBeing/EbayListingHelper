@@ -16,6 +16,7 @@ export default function ListingDetailsPage() {
 
   const [listing, setListing] = useState<Listing | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPushing, setIsPushing] = useState(false);  // New state for push to eBay operation
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   useEffect(() => {
@@ -74,9 +75,25 @@ export default function ListingDetailsPage() {
     if (!listing) return;
     
     try {
+      // Show specific loading state for push action
+      setIsPushing(true);
+      
+      console.log(`[LISTING DETAILS] Pushing listing ${listing.id} to eBay`);
       const response = await apiRequest("POST", `/api/listings/${listing.id}/push-to-ebay`);
       const result = await response.json();
       
+      if (result.success === false) {
+        // Handle error response
+        console.error("[LISTING DETAILS] Failed to push to eBay:", result);
+        toast({
+          title: "eBay Push Failed",
+          description: result.message || "Failed to push listing to eBay. Please check your eBay account connection.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      console.log("[LISTING DETAILS] Successfully pushed to eBay:", result);
       toast({
         title: "Success!",
         description: "Listing pushed to eBay as a draft",
@@ -92,12 +109,23 @@ export default function ListingDetailsPage() {
         });
       }
     } catch (error) {
-      console.error("Error pushing to eBay:", error);
+      console.error("[LISTING DETAILS] Error pushing to eBay:", error);
+      
+      // Show more detailed error information if available
+      let errorMessage = "Failed to push listing to eBay";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
       toast({
-        title: "Error",
-        description: "Failed to push listing to eBay",
+        title: "eBay Connection Error",
+        description: errorMessage,
         variant: "destructive"
       });
+    } finally {
+      setIsPushing(false);
     }
   };
 
@@ -276,6 +304,17 @@ export default function ListingDetailsPage() {
               >
                 <ExternalLink className="h-4 w-4" />
                 On eBay as Draft
+              </Button>
+            ) : isPushing ? (
+              <Button 
+                disabled
+                className="flex items-center gap-2 bg-[#0064d2] hover:bg-[#004b9e] text-white"
+              >
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Connecting to eBay...
               </Button>
             ) : (
               <Button 

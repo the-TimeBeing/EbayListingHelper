@@ -1258,28 +1258,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // In test mode, we'll create a mock eBay draft ID instead of calling the actual API
       let ebayDraftId: string;
       
-      try {
-        if (isTestMode) {
-          // Generate a mock eBay draft ID for testing
-          ebayDraftId = `test-draft-${Date.now()}`;
-          console.log(`TEST MODE: Created mock eBay draft ID: ${ebayDraftId}`);
+      // Only proceed in test mode or if we have valid eBay credentials
+      if (isTestMode) {
+        // Generate a mock eBay draft ID for testing
+        ebayDraftId = `test-draft-${Date.now()}`;
+        console.log(`TEST MODE: Created mock eBay draft ID: ${ebayDraftId}`);
+      } else {
+        // Check if we have valid eBay credentials in the session
+        if (!req.session.ebayToken) {
+          // No valid eBay credentials
+          console.error("No valid eBay token found in session");
+          return res.status(401).json({ 
+            success: false, 
+            message: "eBay authorization is required to push listings to eBay. Please connect your eBay account first." 
+          });
         } else {
-          // Check if we have valid eBay credentials in the session
-          if (!req.session.ebayToken) {
-            // No valid eBay credentials, fall back to test mode
-            console.log("No valid eBay token found, falling back to test mode");
-            ebayDraftId = `test-draft-${Date.now()}`;
-          } else {
-            // Call the actual eBay API in production mode
+          try {
+            // Call the actual eBay API
             ebayDraftId = await ebayService.createDraftListing(req.session.userId, ebayListingData);
             console.log(`Successfully created eBay draft listing with ID: ${ebayDraftId}`);
+          } catch (error) {
+            console.error("Error creating eBay draft listing:", error);
+            // Send detailed error message to client
+            return res.status(500).json({ 
+              success: false, 
+              message: "Failed to create eBay draft listing", 
+              error: error instanceof Error ? error.message : String(error)
+            });
           }
         }
-      } catch (error) {
-        console.error("Error creating eBay draft listing:", error);
-        // Fall back to a test draft ID in case of any errors
-        ebayDraftId = `error-fallback-draft-${Date.now()}`;
-        console.log(`Error occurred, created fallback eBay draft ID: ${ebayDraftId}`);
       }
 
       // Update the listing with the eBay draft ID
