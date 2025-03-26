@@ -51,20 +51,10 @@ function App() {
   useEffect(() => {
     if (!initialCheckDone || isLoading) return;
     
-    // Mark this check to prevent multiple redirects in quick succession
-    const redirectTime = Date.now();
-    const lastRedirect = parseInt(sessionStorage.getItem('lastRedirectTime') || '0');
-    
-    // Don't redirect if we just did one within the last second
-    if (redirectTime - lastRedirect < 1000) {
-      return;
-    }
-    
     if (isAuthenticated) {
-      // If user is authenticated and on sign-in page, redirect to photos
-      if (location === '/' || location === '/signin') {
+      // Only redirect from signin page to photos if explicitly authenticated
+      if (location === '/signin') {
         console.log("Redirecting to /photos after authentication");
-        sessionStorage.setItem('lastRedirectTime', redirectTime.toString());
         setLocation('/photos');
       }
     } else {
@@ -74,7 +64,6 @@ function App() {
       
       if (!isExempt) {
         console.log("Redirecting to / due to no authentication", location);
-        sessionStorage.setItem('lastRedirectTime', redirectTime.toString());
         setLocation('/');
       } else {
         console.log("Not redirecting, exempt page:", location);
