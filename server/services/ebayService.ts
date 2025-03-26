@@ -322,10 +322,29 @@ export class EbayService {
       // Step 1: Create inventory item
       const inventoryItemSku = `sku-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
       
-      // Make sure condition is a string for eBay API
-      if (listingData.inventory_item && listingData.inventory_item.condition) {
-        listingData.inventory_item.condition = String(listingData.inventory_item.condition);
+      // Deep clone the data to avoid modifying the original
+      const inventoryItemData = JSON.parse(JSON.stringify(listingData.inventory_item));
+      
+      // Ensure condition is properly formatted for eBay API
+      if (inventoryItemData && inventoryItemData.condition) {
+        // Convert to string and ensure it matches eBay's expected format
+        const conditionId = String(inventoryItemData.condition).trim();
+        
+        // Validate that it's a valid eBay condition ID format
+        const isValidConditionId = /^\d+$/.test(conditionId);
+        
+        if (!isValidConditionId) {
+          throw new Error(`Invalid condition ID format: ${conditionId}. eBay requires numeric condition IDs.`);
+        }
+        
+        // Ensure it's set as a string in the API request
+        inventoryItemData.condition = conditionId;
+        console.log(`Using eBay condition ID: ${conditionId}`);
       }
+      
+      // Log the final request to help debug
+      console.log(`Sending inventory request to ${this.getBaseUrl()}/sell/inventory/v1/inventory_item/${inventoryItemSku}`);
+      console.log("Inventory item request payload:", JSON.stringify(inventoryItemData, null, 2));
       
       const inventoryItemResponse = await fetch(`${this.getBaseUrl()}/sell/inventory/v1/inventory_item/${inventoryItemSku}`, {
         method: 'PUT',
@@ -334,19 +353,26 @@ export class EbayService {
           'Content-Type': 'application/json',
           'Content-Language': 'en-US'
         },
-        body: JSON.stringify(listingData.inventory_item)
+        body: JSON.stringify(inventoryItemData)
       });
 
+      // Handle inventory API errors
       if (!inventoryItemResponse.ok) {
         let errorMessage = "";
+        let errorDetails = {};
+        
         try {
-          const errorJson = await inventoryItemResponse.json();
-          errorMessage = JSON.stringify(errorJson);
+          // Try to parse structured JSON error
+          errorDetails = await inventoryItemResponse.json();
+          errorMessage = JSON.stringify(errorDetails);
+          console.error("eBay API error details:", errorDetails);
         } catch (e) {
+          // Fallback to raw text if not JSON
           errorMessage = await inventoryItemResponse.text();
         }
-        console.error("eBay inventory item creation failed:", errorMessage);
-        throw new Error(`eBay inventory item creation failed: ${errorMessage}`);
+        
+        console.error(`eBay inventory creation failed with status ${inventoryItemResponse.status}:`, errorMessage);
+        throw new Error(`eBay inventory item creation failed (${inventoryItemResponse.status}): ${errorMessage}`);
       }
       
       console.log(`Successfully created eBay inventory item with SKU: ${inventoryItemSku}`);
@@ -359,6 +385,8 @@ export class EbayService {
         format: "FIXED_PRICE"
       };
       
+      console.log("Sending offer creation request with data:", JSON.stringify(offerData, null, 2));
+      
       const offerResponse = await fetch(`${this.getBaseUrl()}/sell/inventory/v1/offer`, {
         method: 'POST',
         headers: {
@@ -369,31 +397,42 @@ export class EbayService {
         body: JSON.stringify(offerData)
       });
 
+      // Handle offer API errors
       if (!offerResponse.ok) {
         let errorMessage = "";
+        let errorDetails = {};
+        
         try {
-          const errorJson = await offerResponse.json();
-          errorMessage = JSON.stringify(errorJson);
+          errorDetails = await offerResponse.json();
+          errorMessage = JSON.stringify(errorDetails);
+          console.error("eBay offer error details:", errorDetails);
         } catch (e) {
           errorMessage = await offerResponse.text();
         }
-        console.error("eBay offer creation failed:", errorMessage);
-        throw new Error(`eBay offer creation failed: ${errorMessage}`);
+        
+        console.error(`eBay offer creation failed with status ${offerResponse.status}:`, errorMessage);
+        throw new Error(`eBay offer creation failed (${offerResponse.status}): ${errorMessage}`);
       }
       
+      // Parse offer response to get the ID
       let offerId = '';
       try {
         const offerResponseData = await offerResponse.json() as { offerId?: string };
-        offerId = offerResponseData.offerId || `offer-${Date.now()}`;
+        
+        if (!offerResponseData || !offerResponseData.offerId) {
+          console.error("eBay offer creation succeeded but no offer ID was returned:", offerResponseData);
+          throw new Error("eBay offer created but no offer ID returned");
+        }
+        
+        offerId = offerResponseData.offerId;
+        console.log(`Successfully created eBay offer with ID: ${offerId}`);
       } catch (e) {
         console.error("Failed to parse offer response:", e);
-        offerId = `offer-error-${Date.now()}`;
+        throw new Error("Failed to parse eBay offer response: " + (e instanceof Error ? e.message : String(e)));
       }
       
-      console.log(`Successfully created eBay offer with ID: ${offerId}`);
-      
       // Return the offer ID as the draft ID
-      return offerId || '';
+      return offerId;
     } catch (error) {
       console.error("Error in createDraftListing:", error);
       throw error;
