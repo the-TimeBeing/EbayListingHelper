@@ -1280,33 +1280,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create an eBay draft ID (mock in test mode, real in production)
       let ebayDraftId: string;
+      
       if (isTestMode) {
         // Generate a mock eBay draft ID for testing
         ebayDraftId = `test-draft-${Date.now()}`;
         console.log(`TEST MODE: Created mock eBay draft ID: ${ebayDraftId}`);
+        
+        // Update the listing with the eBay draft ID in test mode
+        const updatedListing = await storage.updateListing(listingId, {
+          ebayDraftId,
+          status: 'pushed_to_ebay'
+        });
+
+        res.json({
+          success: true,
+          listing: updatedListing
+        });
       } else {
+        // Check if we have valid eBay credentials in session
+        if (!req.session.ebayToken) {
+          console.error("No eBay token found in session. User not authenticated with eBay.");
+          return res.status(401).json({
+            success: false,
+            message: "You must connect your eBay account before pushing listings. Please sign in with eBay first."
+          });
+        }
+        
         // Call the actual eBay API in production mode
         try {
           ebayDraftId = await ebayService.createDraftListing(req.session.userId, ebayListingData);
           console.log(`Successfully created eBay draft listing with ID: ${ebayDraftId}`);
+          
+          // Only update the listing if we successfully created an eBay draft
+          const updatedListing = await storage.updateListing(listingId, {
+            ebayDraftId,
+            status: 'pushed_to_ebay'
+          });
+
+          res.json({
+            success: true,
+            listing: updatedListing
+          });
         } catch (error) {
           console.error("Error creating eBay draft listing:", error);
-          // We'll still create a listing in case of error, but log the failure
-          ebayDraftId = `error-draft-${Date.now()}`;
-          console.log(`Error creating eBay draft, using fallback ID: ${ebayDraftId}`);
+          // Return error to client instead of creating a fallback ID
+          return res.status(500).json({
+            success: false,
+            message: "Failed to create eBay draft listing. Please try again or check your eBay account settings.",
+            error: error instanceof Error ? error.message : String(error)
+          });
         }
       }
-
-      // Update the listing with the eBay draft ID
-      const updatedListing = await storage.updateListing(listingId, {
-        ebayDraftId,
-        status: 'pushed_to_ebay'
-      });
-
-      res.json({
-        success: true,
-        listing: updatedListing
-      });
     } catch (error) {
       console.error("Push to eBay error:", error);
       res.status(500).json({ message: "Failed to push listing to eBay", error: error instanceof Error ? error.message : String(error) });
