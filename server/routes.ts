@@ -1203,7 +1203,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Format the data as eBay API expects it
       // Safely handle itemSpecifics format
-      let aspectsObject: Record<string, string[]> = {};
+      let aspectsObject: Record<string, string[]> = {
+        "Condition": [listing.condition]
+      };
       
       // Only process item specifics if it's a valid array
       if (Array.isArray(listing.itemSpecifics) && listing.itemSpecifics.length > 0) {
@@ -1221,28 +1223,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Map our condition to eBay condition ID
-      let conditionId = "1000"; // Default to New
-      
-      // Map condition string to eBay condition ID
-      if (listing.condition === "New") {
-        conditionId = "1000";
-      } else if (listing.condition === "Used - Like New") {
-        conditionId = "1500";
-      } else if (listing.condition === "Used - Very Good") {
-        conditionId = "2000";
-      } else if (listing.condition === "Used - Good") {
-        conditionId = "2500";
-      } else if (listing.condition === "Used - Acceptable") {
-        conditionId = "3000";
-      } else if (listing.condition === "Used - Poor") {
-        conditionId = "3500";
-      } else if (listing.condition.includes("Used")) {
-        conditionId = "3000"; // Default for any other used condition
-      }
-      
-      console.log(`Mapping condition "${listing.condition}" to eBay conditionId: ${conditionId}`);
-      
       const ebayListingData = {
         inventory_item: {
           product: {
@@ -1251,7 +1231,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             aspects: aspectsObject,
             imageUrls: listing.images || []
           },
-          condition: conditionId,
+          condition: listing.condition,
           conditionDescription: listing.conditionDescription || "",
           availability: {
             shipToLocationAvailability: {
