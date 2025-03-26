@@ -216,7 +216,7 @@ export class EbayService {
         throw new Error(`eBay search by image failed: ${error}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as { itemSummaries?: any[] };
       
       if (data.itemSummaries && data.itemSummaries.length > 0) {
         console.log(`[EBAY SERVICE] Found ${data.itemSummaries.length} items through image search`);
@@ -269,7 +269,7 @@ export class EbayService {
         throw new Error(`eBay sold items search failed: ${error}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as { itemSummaries?: any[] };
       console.log(`[EBAY SERVICE] Sold items response:`, JSON.stringify(data, null, 2).substring(0, 1000) + '...');
       
       if (data.itemSummaries && data.itemSummaries.length > 0) {
@@ -383,7 +383,7 @@ export class EbayService {
       
       let offerId = '';
       try {
-        const offerResponseData = await offerResponse.json();
+        const offerResponseData = await offerResponse.json() as { offerId?: string };
         offerId = offerResponseData.offerId || `offer-${Date.now()}`;
       } catch (e) {
         console.error("Failed to parse offer response:", e);
@@ -421,7 +421,7 @@ export class EbayService {
       throw new Error(`eBay image upload failed: ${error}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as { imageUrl?: string };
     return data.imageUrl || '';
   }
 }
