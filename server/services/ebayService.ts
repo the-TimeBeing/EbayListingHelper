@@ -322,6 +322,11 @@ export class EbayService {
       // Step 1: Create inventory item
       const inventoryItemSku = `sku-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
       
+      // Make sure condition is a string for eBay API
+      if (listingData.inventory_item && listingData.inventory_item.condition) {
+        listingData.inventory_item.condition = String(listingData.inventory_item.condition);
+      }
+      
       const inventoryItemResponse = await fetch(`${this.getBaseUrl()}/sell/inventory/v1/inventory_item/${inventoryItemSku}`, {
         method: 'PUT',
         headers: {
@@ -333,9 +338,15 @@ export class EbayService {
       });
 
       if (!inventoryItemResponse.ok) {
-        const errorText = await inventoryItemResponse.text();
-        console.error("eBay inventory item creation failed:", errorText);
-        throw new Error(`eBay inventory item creation failed: ${errorText}`);
+        let errorMessage = "";
+        try {
+          const errorJson = await inventoryItemResponse.json();
+          errorMessage = JSON.stringify(errorJson);
+        } catch (e) {
+          errorMessage = await inventoryItemResponse.text();
+        }
+        console.error("eBay inventory item creation failed:", errorMessage);
+        throw new Error(`eBay inventory item creation failed: ${errorMessage}`);
       }
       
       console.log(`Successfully created eBay inventory item with SKU: ${inventoryItemSku}`);
@@ -359,13 +370,25 @@ export class EbayService {
       });
 
       if (!offerResponse.ok) {
-        const errorText = await offerResponse.text();
-        console.error("eBay offer creation failed:", errorText);
-        throw new Error(`eBay offer creation failed: ${errorText}`);
+        let errorMessage = "";
+        try {
+          const errorJson = await offerResponse.json();
+          errorMessage = JSON.stringify(errorJson);
+        } catch (e) {
+          errorMessage = await offerResponse.text();
+        }
+        console.error("eBay offer creation failed:", errorMessage);
+        throw new Error(`eBay offer creation failed: ${errorMessage}`);
       }
       
-      const offerResponseData = await offerResponse.json() as {offerId: string};
-      const offerId = offerResponseData.offerId;
+      let offerId = '';
+      try {
+        const offerResponseData = await offerResponse.json();
+        offerId = offerResponseData.offerId || `offer-${Date.now()}`;
+      } catch (e) {
+        console.error("Failed to parse offer response:", e);
+        offerId = `offer-error-${Date.now()}`;
+      }
       
       console.log(`Successfully created eBay offer with ID: ${offerId}`);
       

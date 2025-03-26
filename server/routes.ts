@@ -1223,6 +1223,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // Map the condition string to eBay's expected condition ID format
+      let ebayConditionId = "1000"; // Default to New
+      
+      // Map our condition strings to eBay condition IDs
+      const conditionMap: Record<string, string> = {
+        "New": "1000",
+        "New with tags": "1000",
+        "New without tags": "1500",
+        "New with defects": "1750",
+        "Used - Excellent": "2000",
+        "Used - Very Good": "2500",
+        "Used - Good": "3000",
+        "Used - Acceptable": "4000",
+        "Used - Fair": "5000",
+        "For parts or not working": "7000"
+      };
+      
+      if (listing.condition && conditionMap[listing.condition]) {
+        ebayConditionId = conditionMap[listing.condition];
+      }
+      
       const ebayListingData = {
         inventory_item: {
           product: {
@@ -1231,7 +1252,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             aspects: aspectsObject,
             imageUrls: listing.images || []
           },
-          condition: listing.condition,
+          condition: ebayConditionId,
           conditionDescription: listing.conditionDescription || "",
           availability: {
             shipToLocationAvailability: {
