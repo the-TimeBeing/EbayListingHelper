@@ -47,15 +47,25 @@ function App() {
     initialAuth();
   }, [checkAuthStatus, checkAuthParam]);
 
-  // Redirect after authentication changes
+  // Redirect after authentication changes (using Wouter's setLocation to prevent full page refresh)
   useEffect(() => {
-    if (!initialCheckDone) return;
+    if (!initialCheckDone || isLoading) return;
+    
+    // Mark this check to prevent multiple redirects in quick succession
+    const redirectTime = Date.now();
+    const lastRedirect = parseInt(sessionStorage.getItem('lastRedirectTime') || '0');
+    
+    // Don't redirect if we just did one within the last second
+    if (redirectTime - lastRedirect < 1000) {
+      return;
+    }
     
     if (isAuthenticated) {
       // If user is authenticated and on sign-in page, redirect to photos
       if (location === '/' || location === '/signin') {
         console.log("Redirecting to /photos after authentication");
-        window.location.href = '/photos';
+        sessionStorage.setItem('lastRedirectTime', redirectTime.toString());
+        setLocation('/photos');
       }
     } else {
       // If user is not authenticated, redirect to sign-in, except for exempt pages
@@ -64,12 +74,13 @@ function App() {
       
       if (!isExempt) {
         console.log("Redirecting to / due to no authentication", location);
-        window.location.href = '/';
+        sessionStorage.setItem('lastRedirectTime', redirectTime.toString());
+        setLocation('/');
       } else {
         console.log("Not redirecting, exempt page:", location);
       }
     }
-  }, [isAuthenticated, initialCheckDone, location]);
+  }, [isAuthenticated, initialCheckDone, isLoading, location, setLocation]);
 
   // Listen for location changes to recheck auth param
   useEffect(() => {
@@ -93,77 +104,74 @@ function App() {
       {/* Floating menu buttons for easy access */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
         {/* Test & Debug Page */}
-        <a href="/test">
-          <button
-            className="flex items-center justify-center p-4 rounded-full bg-purple-600 hover:bg-purple-700 text-white shadow-lg"
-            title="Test & Debug Tools"
+        <button
+          onClick={() => setLocation('/test')}
+          className="flex items-center justify-center p-4 rounded-full bg-purple-600 hover:bg-purple-700 text-white shadow-lg"
+          title="Test & Debug Tools"
+        >
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            width="24" 
+            height="24" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="2" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
           >
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              width="24" 
-              height="24" 
-              viewBox="0 0 24 24" 
-              fill="none" 
-              stroke="currentColor" 
-              strokeWidth="2" 
-              strokeLinecap="round" 
-              strokeLinejoin="round"
-            >
-              <path d="M14 4h6v6"></path>
-              <path d="M10 20H4v-6"></path>
-              <path d="M20 10 4 10"></path>
-              <path d="M4 4v4"></path>
-              <path d="M4 16v4"></path>
-            </svg>
-          </button>
-        </a>
+            <path d="M14 4h6v6"></path>
+            <path d="M10 20H4v-6"></path>
+            <path d="M20 10 4 10"></path>
+            <path d="M4 4v4"></path>
+            <path d="M4 16v4"></path>
+          </svg>
+        </button>
         
         {/* View Listings Button */}
-        <a href="/draft-listings">
-          <button
-            className="flex items-center justify-center p-4 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg"
-            title="View Draft Listings"
+        <button
+          onClick={() => setLocation('/draft-listings')}
+          className="flex items-center justify-center p-4 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg"
+          title="View Draft Listings"
+        >
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            width="24" 
+            height="24" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="2" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
           >
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              width="24" 
-              height="24" 
-              viewBox="0 0 24 24" 
-              fill="none" 
-              stroke="currentColor" 
-              strokeWidth="2" 
-              strokeLinecap="round" 
-              strokeLinejoin="round"
-            >
-              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
-              <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
-              <path d="M9 12h6"></path>
-              <path d="M9 16h6"></path>
-            </svg>
-          </button>
-        </a>
+            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+            <path d="M9 12h6"></path>
+            <path d="M9 16h6"></path>
+          </svg>
+        </button>
         
         {/* Create New Listing Button */}
-        <a href="/direct-photos">
-          <button
-            className="flex items-center justify-center p-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg"
-            title="Create New Listing"
+        <button
+          onClick={() => setLocation('/direct-photos')}
+          className="flex items-center justify-center p-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg"
+          title="Create New Listing"
+        >
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            width="24" 
+            height="24" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="2" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
           >
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              width="24" 
-              height="24" 
-              viewBox="0 0 24 24" 
-              fill="none" 
-              stroke="currentColor" 
-              strokeWidth="2" 
-              strokeLinecap="round" 
-              strokeLinejoin="round"
-            >
-              <path d="M12 5v14M5 12h14"></path>
-            </svg>
-          </button>
-        </a>
+            <path d="M12 5v14M5 12h14"></path>
+          </svg>
+        </button>
       </div>
 
       <Switch>
