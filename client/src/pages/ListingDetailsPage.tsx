@@ -80,52 +80,14 @@ export default function ListingDetailsPage() {
       
       console.log(`[LISTING DETAILS] Pushing listing ${listing.id} to eBay`);
       const response = await apiRequest("POST", `/api/listings/${listing.id}/push-to-ebay`);
-      
-      if (!response.ok) {
-        // Handle HTTP error response (e.g., 401, 500)
-        let errorMessage = "Failed to push listing to eBay";
-        let detailedError = "";
-        
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || errorMessage;
-          detailedError = errorData.error || "";
-          console.error("[LISTING DETAILS] eBay API error:", errorData);
-        } catch (e) {
-          // If we can't parse JSON, use the status text
-          errorMessage = `eBay connection error (${response.status}: ${response.statusText})`;
-          console.error("[LISTING DETAILS] eBay error status:", response.status, response.statusText);
-        }
-        
-        toast({
-          title: "eBay Push Failed",
-          description: errorMessage,
-          variant: "destructive"
-        });
-        
-        // If there's a detailed error, show another toast with technical details
-        if (detailedError) {
-          setTimeout(() => {
-            toast({
-              title: "Technical Details",
-              description: detailedError.substring(0, 200) + (detailedError.length > 200 ? "..." : ""),
-              variant: "destructive"
-            });
-          }, 500);
-        }
-        
-        return;
-      }
-      
-      // Parse successful response
       const result = await response.json();
       
-      // Double-check success flag (belt and suspenders)
       if (result.success === false) {
-        console.error("[LISTING DETAILS] Unexpected failure despite OK status:", result);
+        // Handle error response
+        console.error("[LISTING DETAILS] Failed to push to eBay:", result);
         toast({
           title: "eBay Push Failed",
-          description: result.message || "Failed to push listing to eBay. Please try again.",
+          description: result.message || "Failed to push listing to eBay. Please check your eBay account connection.",
           variant: "destructive"
         });
         return;
@@ -134,10 +96,9 @@ export default function ListingDetailsPage() {
       console.log("[LISTING DETAILS] Successfully pushed to eBay:", result);
       toast({
         title: "Success!",
-        description: "Listing pushed to eBay as a draft. Check your eBay Seller Hub to view and publish it.",
+        description: "Listing pushed to eBay as a draft",
       });
       
-      // Update local listing state with the updated information
       if (result && typeof result === 'object' && 'listing' in result) {
         const updatedListing = result.listing as Partial<Listing>;
         
