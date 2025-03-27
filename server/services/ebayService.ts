@@ -140,7 +140,7 @@ export class EbayService {
       }
       
       // Check if the token is expired or will expire soon (within 5 minutes)
-      const expiresAt = new Date(tokenData.expiresAt);
+      const expiresAt = new Date(tokenData.expiresAt || 0);
       const now = new Date();
       const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000);
       
@@ -603,7 +603,7 @@ export class EbayService {
       throw new Error('Failed to get sandbox token');
     }
 
-    return await response.json();
+    return await response.json() as EbayOAuthResponse;
   }
 }
 

@@ -11,6 +11,51 @@ import { EbayItemSummary, EbaySoldItem } from "@shared/types";
 import session from 'express-session';
 import MemoryStore from 'memorystore';
 
+// Define types for eBay listing data
+interface EbayOfferPolicies {
+  fulfillmentPolicy?: any;
+  paymentPolicy?: any;
+  returnPolicy?: any;
+}
+
+interface EbayOffer {
+  pricingSummary: {
+    price: {
+      value: number;
+      currency: string;
+    }
+  };
+  categoryId: string;
+  listingPolicies: EbayOfferPolicies;
+}
+
+interface EbayInventoryItem {
+  product: {
+    title: string;
+    description: string;
+    imageUrls?: string[];
+    aspects?: Record<string, string[]>;
+  };
+  condition: string;
+  conditionDescription?: string;
+  availability: {
+    shipToLocationAvailability: {
+      quantity: number;
+    }
+  };
+  packageWeightAndSize?: {
+    weight: {
+      value: number;
+      unit: string;
+    }
+  };
+}
+
+interface EbayListingData {
+  inventory_item: EbayInventoryItem;
+  offer: EbayOffer;
+}
+
 // Session store setup
 const SessionStore = MemoryStore(session);
 
@@ -887,6 +932,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Use eBay search by image to find similar items
       let imageSearchResults: EbayItemSummary[] = [];
       let soldItems: EbaySoldItem[] = [];
+      let templateItemDetails: any = null;
       
       try {
         console.log("Searching eBay by image...");
@@ -894,6 +940,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`Found ${imageSearchResults.length} similar items through eBay image search`);
         
         if (imageSearchResults.length > 0) {
+          // Store the first search result for reference as our template
+          const templateItem = imageSearchResults[0];
+          console.log("Using this item as template:", JSON.stringify(templateItem, null, 2));
+          
+          // Get full item details for the template item
+          if (templateItem.itemId) {
+            try {
+              templateItemDetails = await ebayService.getItemDetails(req.session.userId, templateItem.itemId);
+              console.log("Got template item details:", JSON.stringify(templateItemDetails, null, 2));
+              
+              // Store the template details in the session for later use
+              req.session.templateItemDetails = templateItemDetails;
+            } catch (detailsError) {
+              console.error("Failed to get template item details:", detailsError);
+            }
+          }
+          
           // Extract keywords from the first search result title
           const keywords = imageSearchResults[0].title.split(' ').slice(0, 3).join(' ');
           
@@ -1203,13 +1266,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Listing is missing required fields" });
       }
       
+      // Access the template item details if available
+      const templateItem = req.session.templateItemDetails;
+      console.log("Template item details available:", !!templateItem);
+      
+      // Get specific template data for use in our listing
+      let templateCategoryId = "139971"; // Default to Video Game Accessories
+      let templateItemSpecifics: Record<string, string[]> = {};
+      let templateShippingPolicy: any = null;
+      let templatePaymentPolicy: any = null;
+      let templateReturnPolicy: any = null;
+      
+      if (templateItem) {
+        console.log("Using template item data for category and item specifics");
+        
+        // Extract category ID if available
+        if (templateItem.categoryId) {
+          templateCategoryId = templateItem.categoryId;
+          console.log(`Using template category ID: ${templateCategoryId}`);
+        } else if (templateItem.categories && templateItem.categories[0] && templateItem.categories[0].categoryId) {
+          templateCategoryId = templateItem.categories[0].categoryId;
+          console.log(`Using template category ID from categories array: ${templateCategoryId}`);
+        }
+        
+        // Extract item specifics if available
+        if (templateItem.itemSpecifics && Array.isArray(templateItem.itemSpecifics)) {
+          console.log("Template item has item specifics:", templateItem.itemSpecifics.length);
+          templateItem.itemSpecifics.forEach((spec: any) => {
+            if (spec && spec.name && spec.values && Array.isArray(spec.values)) {
+              templateItemSpecifics[spec.name] = spec.values;
+            }
+          });
+        } else if (templateItem.aspects) {
+          console.log("Template item has aspects:", Object.keys(templateItem.aspects).length);
+          templateItemSpecifics = templateItem.aspects;
+        }
+        
+        // Extract policies if available
+        if (templateItem.shippingOptions) {
+          templateShippingPolicy = templateItem.shippingOptions;
+        }
+        
+        if (templateItem.paymentMethods) {
+          templatePaymentPolicy = {
+            paymentMethod: templateItem.paymentMethods[0] || "PAYPAL"
+          };
+        }
+        
+        if (templateItem.returnTerms) {
+          templateReturnPolicy = templateItem.returnTerms;
+        }
+      }
+      
       // Format the data as eBay API expects it
-      // Safely handle itemSpecifics format
+      // Start with item specifics from the template if available, then add ours
       let aspectsObject: Record<string, string[]> = {
+        ...templateItemSpecifics,
         "Condition": [listing.condition]
       };
       
-      // Only process item specifics if it's a valid array
+      // Only process our item specifics if it's a valid array
       if (Array.isArray(listing.itemSpecifics) && listing.itemSpecifics.length > 0) {
         listing.itemSpecifics.forEach(spec => {
           if (typeof spec === 'object' && spec !== null) {
@@ -1225,8 +1341,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Add required item specifics for gaming controllers if they don't exist
-      // This is especially important for Nintendo Switch controllers
+      // Make sure we have some required item specifics even if not in the template
       if (!aspectsObject["Brand"] && listing.title.toLowerCase().includes("nintendo")) {
         aspectsObject["Brand"] = ["Nintendo"];
       }
@@ -1237,18 +1352,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (!aspectsObject["MPN"]) {
         aspectsObject["MPN"] = ["Does Not Apply"];
-      }
-      
-      if (!aspectsObject["Type"] && listing.title.toLowerCase().includes("controller")) {
-        aspectsObject["Type"] = ["Controller"];
-      }
-      
-      if (!aspectsObject["Color"] && listing.title.toLowerCase().includes("pro controller")) {
-        aspectsObject["Color"] = ["Black"];  // Default color for Pro controllers
-      }
-      
-      if (!aspectsObject["Compatible Model"] && listing.title.toLowerCase().includes("switch")) {
-        aspectsObject["Compatible Model"] = ["Nintendo Switch"];
       }
       
       console.log("Final aspects object:", JSON.stringify(aspectsObject, null, 2));
@@ -1276,8 +1379,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Mapping condition "${listing.condition}" to eBay condition enum: "${ebayCondition}"`);
       
-      
-      const ebayListingData = {
+      // Prepare the core listing data with template values where possible
+      const ebayListingData: EbayListingData = {
         inventory_item: {
           product: {
             title: listing.title,
@@ -1289,7 +1392,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           conditionDescription: listing.conditionDescription || "",
           availability: {
             shipToLocationAvailability: {
-              quantity: 1  // Setting back to 1 as requested
+              quantity: 1  // Setting to 1 as requested
             }
           },
           packageWeightAndSize: {
@@ -1305,9 +1408,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
               value: parseFloat(listing.price),
               currency: "USD"
             }
-          }
+          },
+          categoryId: templateCategoryId, // Use category ID from template
+          listingPolicies: {} // Initialize empty object that will be populated below
         }
       };
+      
+      // Add listing policies from template if available
+      if (templateShippingPolicy || templatePaymentPolicy || templateReturnPolicy) {
+        ebayListingData.offer.listingPolicies = {
+          ...(templateShippingPolicy ? { fulfillmentPolicy: templateShippingPolicy } : { 
+            fulfillmentPolicy: {
+              shippingCost: {
+                value: 5.00,
+                currency: "USD"
+              }
+            }
+          }),
+          ...(templatePaymentPolicy ? { paymentPolicy: templatePaymentPolicy } : { 
+            paymentPolicy: {
+              paymentMethod: "PAYPAL"
+            }
+          }),
+          ...(templateReturnPolicy ? { returnPolicy: templateReturnPolicy } : { 
+            returnPolicy: {
+              returnsAccepted: true,
+              returnPeriod: {
+                value: 30,
+                unit: "DAY"
+              }
+            }
+          })
+        };
+      }
       
       // Process images - make sure we're not sending base64 encoded images to eBay
       // eBay requires image URLs, not base64 encoded data
