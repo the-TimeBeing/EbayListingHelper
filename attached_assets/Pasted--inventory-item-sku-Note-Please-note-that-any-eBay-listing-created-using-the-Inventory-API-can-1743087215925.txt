@@ -1,0 +1,766 @@
+/inventory_item/{sku}
+
+Note: Please note that any eBay listing created using the Inventory API cannot be revised or relisted using the Trading API calls.
+
+Note: Each listing can be revised up to 250 times in one calendar day. If this revision threshold is reached, the seller will be blocked from revising the item until the next calendar day.
+
+This call creates a new inventory item record or replaces an existing inventory item record. It is up to sellers whether they want to create a complete inventory item record right from the start, or sellers can provide only some information with the initial createOrReplaceInventoryItem call, and then make one or more additional createOrReplaceInventoryItem calls to complete all required fields for the inventory item record and prepare it for publishing. Upon first creating an inventory item record, only the SKU value in the call path is required.
+
+Important!Publish offer note: Fields may be optional or conditionally required when calling this method, but become required when publishing the offer to create an active listing. For this method, see Inventory item fields for a list of fields required to publish an offer.
+
+
+Note: In addition to the authorization header, which is required for all Inventory API calls, this call also requires the Content-Type and Content-Language headers. See the HTTP request headers for more information.
+
+In the case of replacing an existing inventory item record, the createOrReplaceInventoryItem call will do a complete replacement of the existing inventory item record, so all fields that are currently defined for the inventory item record are required in that update action, regardless of whether their values changed. So, when replacing/updating an inventory item record, it is advised that the seller run a getInventoryItem call to retrieve the full inventory item record and see all of its current values/settings before attempting to update the record. And if changes are made to an inventory item that is part of one or more active eBay listings, a successful call will automatically update these eBay listings.
+
+The key information that is set with the createOrReplaceInventoryItem call include:
+Seller-defined SKU value for the product. Each seller product, including products within an item inventory group, must have their own SKU value. This SKU value is passed in at the end of the call URI
+Condition of the item
+Product details, including any product identifier(s), such as a UPC, ISBN, EAN, or Brand/Manufacturer Part Number pair, a product description, a product title, product/item aspects, and links to images. eBay will use any supplied eBay Product ID (ePID) or a GTIN (UPC, ISBN, or EAN) and attempt to match those identifiers to a product in the eBay Catalog, and if a product match is found, the product details for the inventory item will automatically be populated.
+Quantity of the inventory item that is available for purchase
+Package weight and dimensions, which is required if the seller will be offering calculated shipping options. The package weight will also be required if the seller will be providing flat-rate shipping services, but charging a weight surcharge.
+In addition to the authorization header, which is required for all eBay REST API calls, the createOrReplaceInventoryItem call also requires the Content-Language header, that sets the natural language that will be used in the field values of the request payload. For US English, the code value passed in this header should be en-US. To view other supported Content-Language values, and to read more about all supported HTTP headers for eBay REST API calls, see the HTTP request headers topic in the Using eBay RESTful APIs document.
+
+For those who prefer to create or update numerous inventory item records with one call (up to 25 at a time), the bulkCreateOrReplaceInventoryItem method can be used.
+
+
+Input
+Resource URI
+PUT https://api.ebay.com/sell/inventory/v1/inventory_item/{sku}
+This method is supported in Sandbox environment. To access the endpoint, just replace the api.ebay.com root URI with api.sandbox.ebay.com
+
+URI parameters
+Parameter	Type	Description
+sku	string	This path parameter specifies the seller-defined SKU value for the inventory item being created or updated. SKU values must be unique across the seller's inventory.
+
+Max length: 50
+Occurrence: Required
+
+HTTP request headers
+All requests made to eBay REST operations require you to provide the Authorization HTTP header for authentication authorization.
+
+The table below shows additional HTTP request headers that are either required, conditionally required, or strongly recommended for this method. Other standard HTTP request headers- opens rest request components page (not in this table) can also be used, but they are optional.
+
+Header	Type	Description
+Content-Language	string	This header sets the natural language that will be used in the field values of the request payload. For example, the value passed in this header should be en-US for English or de-DE for German.
+
+For more information on the Content-Language header, refer to HTTP request headers.
+Occurrence: Required
+
+Content-Type	string	This header indicates the format of the request body provided by the client. Its value should be set to application/json.
+
+For more information, refer to HTTP request headers.
+Occurrence: Required
+
+OAuth scope
+This request requires an access token created with the authorization code grant flow, using one or more scopes from the following list (please check your Application Keys page for a list of OAuth scopes available to your application):
+
+https://api.ebay.com/oauth/api_scope/sell.inventory
+
+See OAuth access tokens for more information.
+
+Request payload
+ Copy complete valid JSON to clipboard
+{ /* InventoryItem */
+"availability" :
+{ /* Availability */
+"pickupAtLocationAvailability" : [
+{ /* PickupAtLocationAvailability */
+"availabilityType" : "AvailabilityTypeEnum : [IN_STOCK,OUT_OF_STOCK,SHIP_TO_STORE]",
+"fulfillmentTime" :
+{ /* TimeDuration */
+"unit" : "TimeDurationUnitEnum : [YEAR,MONTH,DAY...]",
+"value" : "integer"
+},
+"merchantLocationKey" : "string",
+"quantity" : "integer"
+}
+],
+"shipToLocationAvailability" :
+{ /* ShipToLocationAvailability */
+"availabilityDistributions" : [
+{ /* AvailabilityDistribution */
+"fulfillmentTime" :
+{ /* TimeDuration */
+"unit" : "TimeDurationUnitEnum : [YEAR,MONTH,DAY...]",
+"value" : "integer"
+},
+"merchantLocationKey" : "string",
+"quantity" : "integer"
+}
+],
+"quantity" : "integer"
+}
+},
+"condition" : "ConditionEnum : [NEW,LIKE_NEW,NEW_OTHER...]",
+"conditionDescription" : "string",
+"conditionDescriptors" : [
+{ /* ConditionDescriptor */
+"additionalInfo" : "string",
+"name" : "string",
+"values" : [
+"string"
+]
+}
+],
+"packageWeightAndSize" :
+{ /* PackageWeightAndSize */
+"dimensions" :
+{ /* Dimension */
+"height" : "number",
+"length" : "number",
+"unit" : "LengthUnitOfMeasureEnum : [INCH,FEET,CENTIMETER...]",
+"width" : "number"
+},
+"packageType" : "PackageTypeEnum : [LETTER,BULKY_GOODS,CARAVAN...]",
+"shippingIrregular" : "boolean",
+"weight" :
+{ /* Weight */
+"unit" : "WeightUnitOfMeasureEnum : [POUND,KILOGRAM,OUNCE...]",
+"value" : "number"
+}
+},
+"product" :
+{ /* Product */
+"aspects" : "string",
+"brand" : "string",
+"description" : "string",
+"ean" : [
+"string"
+],
+"epid" : "string",
+"imageUrls" : [
+"string"
+],
+"isbn" : [
+"string"
+],
+"mpn" : "string",
+"subtitle" : "string",
+"title" : "string",
+"upc" : [
+"string"
+],
+"videoIds" : [
+"string"
+]
+}
+}
+Request fields
+Input container/field	Type	Description
+availability	Availability	
+This container is used to specify the quantity of the inventory item that are available for purchase.
+
+This container is optional up until the seller is ready to publish an offer with the SKU, at which time it becomes required. Availability data must also be passed if an inventory item is being updated and availability data already exists for that inventory item.
+
+Since an inventory item must have specified quantity before being published in an offer, this container is always returned in the 'Get' calls for SKUs that are part of a published offer. If a SKU is not part of a published offer, this container will only be returned if set for the inventory item.
+Occurrence: Conditional
+
+
+availability.pickupAtLocationAvailability	array of PickupAtLocationAvailability	
+This container consists of an array of one or more of the merchant's physical store locations where the inventory item is available for In-Store Pickup orders. The merchant's location, the quantity available, and the fulfillment time (how soon the item will be ready for pickup after the order takes place) are all in this container. In-Store Pickup is only available to large merchants selling on the US, UK, Germany, and Australia sites.
+Occurrence: Optional
+
+
+availability.pickupAtLocationAvailability.availabilityType	AvailabilityTypeEnum	
+The enumeration value in this field indicates the availability status of the inventory item at the merchant's physical store specified by the pickupAtLocationAvailability.merchantLocationKey field. This field is required if the pickupAtLocationAvailability container is used, and is always returned with the pickupAtLocationAvailability container.
+
+See AvailabilityTypeEnum for more information about how/when you use each enumeration value.
+Occurrence: Conditional
+
+
+availability.pickupAtLocationAvailability.fulfillmentTime	TimeDuration	
+This container is used to indicate how soon an In-Store Pickup order will be available for pickup by the buyer after the order takes place. This container is required if the pickupAtLocationAvailability container is used, and is always returned with the pickupAtLocationAvailability container.
+Occurrence: Conditional
+
+
+availability.pickupAtLocationAvailability.fulfillmentTime.unit	TimeDurationUnitEnum	
+This enumeration value indicates the time unit used to specify the fulfillment time, such as BUSINESS_DAY.
+Occurrence: Conditional
+
+
+availability.pickupAtLocationAvailability.fulfillmentTime.value	integer	
+The integer value in this field, along with the time unit in the unit field, will indicate the fulfillment time.
+
+For standard orders that will be shipped, this value will indicate the expected fulfillment time if the inventory item is shipped from the inventory location. If the value of this field is 4, and the value of the unit field is BUSINESS_DAY, then the estimated delivery date after purchase is 4 business days.
+Occurrence: Conditional
+
+
+availability.pickupAtLocationAvailability.merchantLocationKey	string	
+The unique identifier of a merchant's store where the In-Store Pickup inventory item is currently located, or where inventory will be sent to. If the merchant's store is currently awaiting for inventory, the availabilityType value should be SHIP_TO_STORE. This field is required if the pickupAtLocationAvailability container is used, and is always returned with the pickupAtLocationAvailability container.
+
+Use the getInventoryLocations method to retrieve merchant location keys.
+
+Max length: 36
+Occurrence: Conditional
+
+
+availability.pickupAtLocationAvailability.quantity	integer	
+This integer value indicates the quantity of the inventory item that is available for In-Store Pickup at the store identified by the merchantLocationKey value. The value of quantity should be an integer value greater than 0, unless the inventory item is out of stock. This field is required if the pickupAtLocationAvailability container is used, and is always returned with the pickupAtLocationAvailability container.
+Occurrence: Conditional
+
+
+availability.shipToLocationAvailability	ShipToLocationAvailability	
+This container specifies the quantity of the inventory item that are available for purchase across one or more eBay marketplaces.
+Occurrence: Optional
+
+
+availability.shipToLocationAvailability.availabilityDistributions	array of AvailabilityDistribution	
+This container is used to set the available quantity of the inventory item at one or more warehouse locations.
+
+This container will be returned if available quantity is set for one or more inventory locations.
+Occurrence: Optional
+
+
+availability.shipToLocationAvailability.availabilityDistributions.fulfillmentTime	TimeDuration	
+This container is used to indicate the expected fulfillment time if the inventory item is shipped from the warehouse location identified in the corresponding merchantLocationKey field. The fulfillment time is the estimated number of business days after purchase that the buyer can expect the item to be delivered.
+
+This field is optional, and is used by eBay to provide the estimated delivery date to buyers. This field is returned by getInventoryItem and getInventoryItems if set for the inventory item.
+Occurrence: Optional
+
+
+availability.shipToLocationAvailability.availabilityDistributions.fulfillmentTime.unit	TimeDurationUnitEnum	
+This enumeration value indicates the time unit used to specify the fulfillment time, such as BUSINESS_DAY.
+Occurrence: Conditional
+
+
+availability.shipToLocationAvailability.availabilityDistributions.fulfillmentTime.value	integer	
+The integer value in this field, along with the time unit in the unit field, will indicate the fulfillment time.
+
+For standard orders that will be shipped, this value will indicate the expected fulfillment time if the inventory item is shipped from the inventory location. If the value of this field is 4, and the value of the unit field is BUSINESS_DAY, then the estimated delivery date after purchase is 4 business days.
+Occurrence: Conditional
+
+
+availability.shipToLocationAvailability.availabilityDistributions.merchantLocationKey	string	
+The unique identifier of an inventory location where quantity is available for the inventory item. This field is conditionally required to identify the inventory location that has quantity of the inventory item.
+
+Use the getInventoryLocations method to retrieve merchant location keys.
+Occurrence: Conditional
+
+
+availability.shipToLocationAvailability.availabilityDistributions.quantity	integer	
+The integer value passed into this field indicates the quantity of the inventory item that is available at this inventory location. This field is conditionally required.
+Occurrence: Conditional
+
+
+availability.shipToLocationAvailability.quantity	integer	
+This container is used to set the total 'ship-to-home' quantity of the inventory item that will be available for purchase through one or more published offers.
+
+This field represents the total quantity of the item that is available for sale across all marketplaces. To update the available quantity allocated to a specific marketplace, use the availableQuantity field in the offer container associated with that marketplace.
+
+Note: To ensure that the available quantity allocated to a specific marketplace doesn't exceed the total available stock, the quantity specified on a listing will be the minimum value between this field and the availableQuantity field.
+
+If an existing inventory item is being updated, and the 'ship-to-home' quantity already exists for the inventory item record, this field should be included again, even if the value is not changing, or the available quantity data will be lost.
+
+Important! This field is not immediately required, but 'ship-to-home' quantity must be set before an offer of the inventory item can be published.
+
+Occurrence: Conditional
+
+
+condition	ConditionEnum	
+This enumeration value indicates the condition of the item. Supported item condition values will vary by eBay site and category. To see which item condition values that a particular eBay category supports, use the getItemConditionPolicies method of the Metadata API. This method returns condition ID values that map to the enumeration values defined in the ConditionEnum type. The Item condition ID and name values topic in the Selling Integration Guide has a table that maps condition ID values to ConditionEnum values. The getItemConditionPolicies call reference page has more information.
+
+A condition value is optional up until the seller is ready to publish an offer with the SKU, at which time it becomes required for most eBay categories.
+
+Note: The 'Manufacturer Refurbished' item condition is no longer a valid item condition on any eBay marketplace, and to reflect this change, the MANUFACTURER_REFURBISHED value is no longer applicable, and should not be used. With Version 1.13.0, the CERTIFIED_REFURBISHED enumeration value has been introduced, and CR-eligible sellers should make a note to start using CERTIFIED_REFURBISHED from this point forward. For the time being, if the MANUFACTURER_REFURBISHED enum is used in a createOrReplaceInventoryItem method, it will be accepted but automatically converted by eBay to CERTIFIED_REFURBISHED. In the future, the MANUFACTURER_REFURBISHED may start triggering an error if used.
+
+To list an item as 'Certified Refurbished', a seller must be pre-qualified by eBay for this feature. Any seller who is not eligible for this feature will be blocked if they try to create a new listing or revise an existing listing with this item condition.
+
+Any seller that is interested in eligibility requirements to list with 'Certified Refurbished' should see the Certified refurbished program page in Seller Center.
+Important!For trading card listings in Non-Sport Trading Card Singles (183050), CCG Individual Cards (183454), and Sports Trading Card Singles (261328) categories, sellers must use either LIKE_NEW (2750) or USED_VERY_GOOD (4000) item condition. No other item conditions will be accepted. Use of these item conditions require the seller to use the conditionDescriptors array to provide one or more applicable Condition Descriptor name-value pairs. See the conditionDescriptors field description for more information. If these requierments are not followed, publishOffer, updateOffer, bulkPublishOffer, and publishOfferByInventoryItemGroup methods will fail when trying to create new listings.
+
+
+Important!Publish offer note: This field is required before an offer can be published to create an active listing.
+
+Occurrence: Conditional
+
+
+conditionDescription	string	
+This string field is used by the seller to more clearly describe the condition of a used inventory item, or an inventory item whose condition value is not NEW, LIKE_NEW, NEW_OTHER, or NEW_WITH_DEFECTS.
+
+The conditionDescription field is available for all eBay categories. If the conditionDescription field is used with an item in one of the new conditions (mentioned in previous paragraph), eBay will simply ignore this field if included, and eBay will return a warning message to the user.
+
+This field should only be used to further clarify the condition of the used item. It should not be used for branding, promotions, shipping, returns, payment or other information unrelated to the condition of the used item. Make sure that the condition value, condition description, listing description, and the item's pictures do not contradict one another.
+
+This field is not always required, but is required if an inventory item is being updated and a condition description already exists for that inventory item.
+
+This field is returned in the getInventoryItem and getInventoryItems calls if a condition description was provided for a used inventory item.
+
+Max Length: 1000.
+Occurrence: Optional
+
+
+conditionDescriptors	array of ConditionDescriptor	
+Important!For trading card listings in Non-Sport Trading Card Singles (183050), CCG Individual Cards (183454), and Sports Trading Card Singles (261328) categories, sellers must use either LIKE_NEW (2750) or USED_VERY_GOOD (4000) item condition. No other item conditions will be accepted. Use of these item conditions require the seller to use the conditionDescriptors array to provide one or more applicable Condition Descriptor name-value pairs. See the conditionDescriptors field description for more information. If these requierments are not followed, publishOffer, updateOffer, bulkPublishOffer, and publishOfferByInventoryItemGroup methods will fail when trying to create new listings.
+
+
+This container is used by the seller to provide additional information about the condition of an item in a structured format. Condition descriptors are name-value attributes that can be either closed set or open text inputs.
+
+To retrieve all condition descriptor numeric IDs for a category, use the getItemConditionPolicies method of the Metadata API.
+
+Occurrence: Conditional
+
+
+conditionDescriptors.additionalInfo	string	
+This string provides additional information about a condition descriptor. Open text is passed in this field.
+
+In the case of trading cards, this field houses the optional Certification Number condition descriptor for graded cards.
+
+Max Length: 30 characters
+Occurrence: Optional
+
+
+conditionDescriptors.name	string	
+This string provides the name of a condition descriptor. A numeric ID is passed in this field. This numeric ID maps to the name of a condition descriptor. Condition descriptor name-value pairs provide more information about an item's condition in a structured way.
+
+To retrieve all condition descriptor name numeric IDs for a category, refer to the conditionDescriptorId field returned in the getItemConditionPolicies method of Metadata API.
+
+In the case of trading cards, this field is used to provide condition descriptors for a card. For graded cards, the condition descriptors for Grader and Grade are required, while the condition descriptor for Certification Number is optional. For ungraded cards, only the Card Condition condition descriptor is required.
+Occurrence: Conditional
+
+
+conditionDescriptors.values	array of string	
+This array provides the value(s) associated with a condition descriptor. One or more numeric IDs is passed in this field. Commas are used as delimiters between successive name/value pairs. These numeric IDs map to the values associated with a condition descriptor name. Condition descriptor name-value pairs provide more information about an item's condition in a structured way.
+
+To retrieve all condition descriptor value numeric IDs for a category, refer to the ConditionDescriptorValueId array returned in the getItemConditionPolicies method of Metadata API.
+
+In the case of trading cards, this field houses the information on the Grader and Grade descriptors of graded cards and the Card Condition descriptor for ungraded cards.
+Occurrence: Conditional
+
+
+packageWeightAndSize	PackageWeightAndSize	
+This container is used if the seller is offering one or more calculated shipping options for the inventory item, or if the seller is offering flat-rate shipping but is including a shipping surcharge based on the item's weight. This container is used to specify the dimensions and weight of a shipping package.
+
+Note: Package weight and dimensions are only supported for the following marketplaces: AU, CA, DE, IT, UK, US, and Motors. If this information is provided on other marketplaces, it will be ignored.
+
+This container is not always required, but is required if an inventory item is being updated and shipping package data already exists for that inventory item.
+
+This container is returned in the getInventoryItem and getInventoryItems calls if package type, package weight, and/or package dimensions are specified for an inventory item.
+
+See the Calculated shipping help page for more information on calculated shipping.
+Occurrence: Conditional
+
+
+packageWeightAndSize.dimensions	Dimension	
+This container is used to indicate the length, width, and height of the shipping package that will be used to ship the inventory item. The dimensions of a shipping package are needed when calculated shipping is used.
+
+This container will be returned if package dimensions are set for the inventory item.
+Occurrence: Conditional
+
+
+packageWeightAndSize.dimensions.height	number	
+The actual height (in the measurement unit specified in the unit field) of the shipping package. All fields of the dimensions container are required if package dimensions are specified.
+
+If a shipping package measured 21.5 inches in length, 15.0 inches in width, and 12.0 inches in height, the dimensions container would look as follows:
+"dimensions": {
+ "length": 21.5,
+ "width": 15.0,
+ "height": 12.0,
+ "unit": "INCH"
+ } 
+Occurrence: Conditional
+
+
+packageWeightAndSize.dimensions.length	number	
+The actual length (in the measurement unit specified in the unit field) of the shipping package. All fields of the dimensions container are required if package dimensions are specified.
+
+If a shipping package measured 21.5 inches in length, 15.0 inches in width, and 12.0 inches in height, the dimensions container would look as follows:
+"dimensions": {
+ "length": 21.5,
+ "width": 15.0,
+ "height": 12.0,
+ "unit": "INCH"
+ } 
+Occurrence: Conditional
+
+
+packageWeightAndSize.dimensions.unit	LengthUnitOfMeasureEnum	
+The unit of measurement used to specify the dimensions of a shipping package. All fields of the dimensions container are required if package dimensions are specified. If the English system of measurement is being used, the applicable values for dimension units are FEET and INCH. If the metric system of measurement is being used, the applicable values for weight units are METER and CENTIMETER. The metric system is used by most countries outside of the US.
+Occurrence: Conditional
+
+
+packageWeightAndSize.dimensions.width	number	
+The actual width (in the measurement unit specified in the unit field) of the shipping package. All fields of the dimensions container are required if package dimensions are specified.
+
+If a shipping package measured 21.5 inches in length, 15.0 inches in width, and 12.0 inches in height, the dimensions container would look as follows:
+"dimensions": {
+ "length": 21.5,
+ "width": 15.0,
+ "height": 12.0,
+ "unit": "INCH"
+ } 
+Occurrence: Conditional
+
+
+packageWeightAndSize.packageType	PackageTypeEnum	
+This enumeration value indicates the type of shipping package used to ship the inventory item. The supported values for this field can be found in the PackageTypeEnum type.
+
+This field will be returned if the package type is set for the inventory item.
+
+Note: You can use the GeteBayDetails Trading API call to retrieve a list of supported package types for a specific marketplace.
+Occurrence: Conditional
+
+
+packageWeightAndSize.shippingIrregular	boolean	
+A value of true indicates that the package is irregular and cannot go through the stamping machine at the shipping service office. This field applies to calculated shipping only. Irregular packages require special or fragile handling.
+Occurrence: Optional
+
+
+packageWeightAndSize.weight	Weight	
+This container is used to specify the weight of the shipping package that will be used to ship the inventory item. The weight of a shipping package are needed when calculated shipping is used, or if flat-rate shipping rates are used, but with a weight surcharge.
+
+This field will be returned if package weight is set for the inventory item.
+Occurrence: Conditional
+
+
+packageWeightAndSize.weight.unit	WeightUnitOfMeasureEnum	
+The unit of measurement used to specify the weight of a shipping package. Both the unit and value fields are required if the weight container is used. If the English system of measurement is being used, the applicable values for weight units are POUND and OUNCE. If the metric system of measurement is being used, the applicable values for weight units are KILOGRAM and GRAM. The metric system is used by most countries outside of the US.
+Occurrence: Conditional
+
+
+packageWeightAndSize.weight.value	number	
+The actual weight (in the measurement unit specified in the unit field) of the shipping package. Both the unit and value fields are required if the weight container is used. If a shipping package weighed 20.5 ounces, the container would look as follows:
+"weight": {
+ "value": 20.5,
+ "unit": "OUNCE"
+ }
+Occurrence: Conditional
+
+
+product	Product	
+This container is used to define the product details, such as product title, product description, product identifiers (eBay Product ID, GTIN, or Brand/MPN pair), product aspects/item specifics, and product images. Note that an eBay Product ID (ePID) or a Global Trade Item Number (GTIN) value can be used in an attempt to find a matching product in the eBay Catalog. If a product match is found, the inventory item record will automatically pick up all product details associated with the eBay Catalog product.
+
+Many eBay categories will require at least one product identifier (a GTIN or a Brand/MPN pair). To discover which product identifier(s) that an eBay category might require or support, use the getItemAspectsForCategory method in the Taxonomy API. In the getItemAspectsForCategory response, look for product identifier names (brand, mpn, upc, ean, isbn) in the localizedAspectName fields, and then look for the correspondinng aspectRequired boolean fields as well as the corresponding aspectUsage field, which will indicate if the aspect is required, recommended, or optional. In some cases, a product identifier type may be required, but not known/applicable for a product. If this is the case, the seller must still include the corresponding field in the inventory item record, but pass in a default text string. This text string can vary by site, so the seller should use the GeteBayDetails call of the Trading API to get this string value. In the GeteBayDetails call, the seller should include a DetailName field with its value set to ProductDetails. In the response of the call, the seller can see the default string value in the ProductDetails.ProductIdentifierUnavailableText field. The seller will use this value in one or more of the product identifier fields (ean, isbn, upc, or mpn) if a product ID isn't known or applicable.
+
+This container is not initially required, but it is required before an inventory item can be published as an offer, and/or if an inventory item is being updated and product data already exists for that inventory item.
+
+This container is always returned for published offers in the getInventoryItem, bulkGetInventoryItem, and getInventoryItems calls since product data must be defined for published offers, but for unpublished inventory items, this container will only be returned if product details have been defined for the inventory item.
+
+Important!Publish offer note: This container and a few of its child fields (as noted below) are required before an offer can be published to create an active listing.
+
+Occurrence: Conditional
+
+
+product.aspects	string	
+This is a collection of item specifics (aka product aspects) name-value pairs that provide more information about the product and might make it easier for buyers to find. To view required/recommended product aspects/item specifics names (and corresponding values) for a specific eBay category, sellers can use the getItemAspectsForCategory method of the Taxonomy API. Alternatively, sellers can view similar items on eBay.com in the same category to get an idea of what other sellers are using for product aspects/item specifics.
+
+Sellers also have the option of specifying an eBay Product ID (ePID) or optionally, a Global Trade Item Number (GTIN) through the corresponding fields in the product container in an attempt to find a product match in the eBay Catalog. If a match is found based on the ePID or GTIN value, the product aspects that are defined for the eBay Catalog product will automatically get picked up by the newly created/updated inventory item.
+
+Below is an example of the proper JSON syntax to use when manually inputting item specifics. Note that one item specific name, such as 'Features', can have more than one value. If an item specific name has more than one value, each value is delimited with a comma.
+
+"aspects": {
+ "Brand": ["GoPro"],
+ "Storage Type": ["Removable"]
+ }
+
+Note that inventory items that will become part of an inventory item group and multiple-variation listing should have the same attributes that are defined for the inventory item group.
+
+This container will be returned if one or more item specific pairs are defined for the inventory item.
+
+Important!Publish offer note: This field is required before an offer can be published to create an active listing.
+
+
+
+Max Length for Aspect Name: 40
+
+Max Length for Aspect Value: 50
+Occurrence: Conditional
+
+
+product.brand	string	
+The brand of the product. This field is often paired with the mpn field to identify a specific product by Manufacturer Part Number. This field is conditionally required if the eBay category requires a Manufacturer Part Number (MPN) value. If eBay is able to find a product match in the eBay Catalog when an eBay Product ID (ePID) or GTIN value (UPC, ISBN, or EAN) is supplied, all product details of that eBay Catalog product is picked up by the inventory item record (including brand) if the createOrReplaceInventoryItem call is successful.
+
+This field is returned if defined for an inventory item. If a brand was passed in as an item specific name-value pair through the aspects array in a createOrReplaceInventoryItem call, this value is also picked up by the brand field.
+
+Max Length: 65
+Occurrence: Conditional
+
+
+product.description	string	
+The description of the product. The description of an existing inventory item can be added or modified with a createOrReplaceInventoryItem call. The description of an inventory item is automatically populated if the seller specifies an eBay Product ID (ePID) or a Global Trade Item Number (GTIN) and eBay is able to find a matching product in the eBay Catalog.
+
+Note that this field is optional but recommended. If a listingDescription field is omitted when creating and publishing a single-variation offer, the text in this field will be used instead. If neither the product.description field for the inventory item nor the listingDescription field for the offer exist, the publishOffer call will fail. If the inventory item will be part of an inventory item group/multiple-variation listing, this field should definitely be used to specify how the corresponding product variation is different (e.g. This is the green, extra-large version of the shirt). However, in the case of an inventory item group, the text in the description field of the inventory item group will become the listing description of the actual eBay listing instead of the text in this field.
+
+Basic HTML tags are supported, including the following tags:
+<b>
+<strong>
+<br>
+<ol>
+<ul>
+<li>
+Table tags including <table>, <tr>, <td>, <th>, <thead>, <tfoot>, <tbody>, <caption>, <colgroup>, and <col>
+A seller can not use any active content in their listing description. Active content includes animation or video via JavaScript, Flash, plug-ins, or form actions.
+
+This field is returned if defined for an inventory item. If one of the GTIN types (e.g. UPC) was passed in when the inventory item was created/modified and a product match was found in the eBay catalog, product description is one of the details that gets picked up from the catalog product.
+
+Important!Publish offer note: This field is required before an offer can be published to create an active listing.
+
+
+Max Length: 4000
+Occurrence: Conditional
+
+
+product.ean	array of string	
+The European Article Number/International Article Number (EAN) for the product. Although an ePID value is preferred when trying to find a product match in the eBay Catalog, this field can also be used in an attempt to find a product match in the eBay Catalog. If a product match is found in the eBay Catalog, the inventory item is automatically populated with available product details such as a title, a product description, product aspects (including the specified EAN value), and a link to any stock image that exists for the catalog product.
+
+This field is returned if defined for an inventory item. If an EAN was passed in as an item specific name-value pair through the aspects array in a createOrReplaceInventoryItem call, this value is also picked up by the ean field.
+Occurrence: Optional
+
+
+product.epid	string	
+The eBay Product Identifier (ePID) for the product. This field can be used to directly identify an eBay Catalog product. Based on its specified ePID value, eBay will search for the product in the eBay Catalog, and if a match is found, the inventory item is automatically populated with available product details such as product title, product description, product aspects, and a link to any stock image that exists for the catalog product.
+
+In an attempt to find a eBay Catalog product match, an ePID value is always preferred over the other product identifiers, since it is possible that one GTIN value can be associated with multiple eBay Catalog products, and if multiple products are found, product details will not be picked up by the Inventory Item object.
+
+Note: When listing in categoryID 173651 (Auto Performance Tuning Devices & Software), the use of catalog products is required. For more information, see Tuning devices and software.
+
+
+This field is returned if defined for an inventory item.
+Occurrence: Conditional
+
+
+product.imageUrls	array of string	
+An array of one or more links to images for the product. URLs must use the "HTTPS" protocol. Images can be self-hosted by the seller, or sellers can use the UploadSiteHostedPictures call of the Trading API to upload images to an eBay Picture Server. If successful, the response of the UploadSiteHostedPictures call will contain a full URL to the image on an eBay Picture Server. This is the URL that will be passed in through the imageUrls array. Before an offer can be published, at least one image must exist for the inventory item. In almost any category at no cost, sellers can include up to 24 pictures in one listing. For inventory items that are a part of an inventory item group/multiple-variation listings, a maximum of 12 pictures may be used per inventory item in the group. Motor vehicle listings are an exception. The number of included pictures in motor vehicle listings depend on the selected vehicle package (see Fees for selling vehicles on eBay Motors).
+
+A link to a stock image for a product may automatically be populated for an inventory item if the seller specifies an eBay Product ID (ePID) or a Global Trade Item Number (GTIN) and eBay is able to find a matching product in the eBay Catalog.
+
+This container will always be returned for an inventory item that is part of a published offer since a published offer will always have at least one picture, but this container will only be returned if defined for inventory items that are not a part of a published offer.
+
+Important!Publish offer note: This array is required and at least one image URL must be specified before an offer can be published to create an active listing.
+
+Occurrence: Conditional
+
+
+product.isbn	array of string	
+The International Standard Book Number (ISBN) value for the product. Although an ePID value is preferred when trying to find a product match in the eBay Catalog, this field can also be used in an attempt to find a product match in the eBay Catalog. If a product match is found in the eBay Catalog, the inventory item is automatically populated with available product details such as a title, a product description, product aspects (including the specified ISBN value), and a link to any stock image that exists for the catalog product.
+
+This field is returned if defined for an inventory item. If an ISBN was passed in as an item specific name-value pair through the aspects array in a createOrReplaceInventoryItem call, this value is also picked up by the isbn field.
+Occurrence: Optional
+
+
+product.mpn	string	
+The Manufacturer Part Number (MPN) of a product. This field is paired with the brand field to identify a product. Some eBay categories require MPN values. The getItemAspectsForCategory method in the Taxonomy API can be used to see if a category requires an MPN. The MPN value for a product may automatically be populated for an inventory item if the seller specifies an eBay Product ID (ePID) or a Global Trade Item Number (GTIN) and eBay is able to find a matching product in the eBay Catalog.
+
+This field is returned if defined for an inventory item. If an MPN was passed in as an item specific name-value pair through the aspects array in a createOrReplaceInventoryItem call, this value is also picked up by the mpn field.
+
+Max Length: 65
+Occurrence: Conditional
+
+
+product.subtitle	string	
+A subtitle is an optional listing feature that allows the seller to provide more information about the product, possibly including keywords that may assist with search results. An additional listing fee will be charged to the seller if a subtitle is used. For more information on using listing subtitles on the US site, see the Adding a subtitle to your listings help page. The subtitle of an existing inventory item can added, modified, or removed with a createOrReplaceInventoryItem call.
+
+Note that the same subtitle text should be used for each inventory item that will be part of an inventory item group, and ultimately become one product variation within a multiple-variation listing.
+
+This field will only be returned if set for an inventory item.
+
+Max Length: 55
+Occurrence: Optional
+
+
+product.title	string	
+The title of an inventory item can be added or modified with a createOrReplaceInventoryItem call. Although not immediately required, a title will be needed before an offer with the inventory item is published. The title of an inventory item is automatically populated if the seller specifies an eBay Product ID (ePID) or a Global Trade Item Number (GTIN) and eBay is able to find a matching product in the eBay Catalog. If the inventory item will become part of a single-variation offer, and the listing is not a product-based listing, the text in this field will become the actual listing title for the published offer. However, if the inventory item will become part of a multiple-variation offer, the text in title field of the inventory item group entity will actually become the listing title for the published offer instead, although a title can still be provided for the inventory item, and it will actually become the title of the variation.
+
+This field will always be returned for an inventory item that is part of a published offer since a published offer will always have a listing title, but this field will only be returned if defined for inventory items that are not a part of a published offer.
+
+Important!Publish offer note: This field is required before an offer can be published to create an active listing.
+
+
+Max Length: 80
+Occurrence: Conditional
+
+
+product.upc	array of string	
+The Universal Product Code (UPC) value for the product. Although an ePID value is preferred when trying to find a product match in the eBay Catalog, this field can also be used in an attempt to find a product match in the eBay Catalog. If a product match is found in the eBay Catalog, the inventory item is automatically populated with available product details such as a title, a product description, product aspects (including the specified UPC value), and a link to any stock image that exists for the catalog product.
+
+This field is returned if defined for an inventory item. If a UPC was passed in as an item specific name-value pair through the aspects array in a createOrReplaceInventoryItem call, this value is also picked up by the upc field.
+Occurrence: Optional
+
+
+product.videoIds	array of string	
+An array of one or more videoId values for the product. A video ID is a unique identifier that is automatically created by eBay when a seller successfully uploads a video to eBay using the uploadVideo method of the Media API.
+
+For information on supported marketplaces and platforms, as well as other requirements and limitations of video support, please refer to Managing videos.
+
+Note: Only one video per listing is supported.
+Occurrence: Optional
+
+
+Output
+HTTP response headers
+See HTTP response headers for details.
+
+Header	Meaning
+Content-Language	This header controls the language that is used for any returned errors or warnings in the call response.
+Response payload
+ Copy complete valid JSON to clipboard
+{ /* BaseResponse */
+"warnings" : [
+{ /* ErrorDetailV3 */
+"category" : "string",
+"domain" : "string",
+"errorId" : "integer",
+"inputRefIds" : [
+"string"
+],
+"longMessage" : "string",
+"message" : "string",
+"outputRefIds" : [
+"string"
+],
+"parameters" : [
+{ /* ErrorParameterV3 */
+"name" : "string",
+"value" : "string"
+}
+],
+"subdomain" : "string"
+}
+]
+}
+Response fields
+Output container/field	Type	Description
+warnings	array of ErrorDetailV3	
+This container will be returned in a call response payload if one or more warnings or errors are triggered when an Inventory API call is made. This container will contain detailed information about the error or warning.
+Occurrence: Conditional
+
+
+warnings.category	string	
+This string value indicates the error category. There are three categories of errors: request errors, application errors, and system errors.
+Occurrence: Conditional
+
+
+warnings.domain	string	
+The name of the domain in which the error or warning occurred.
+Occurrence: Conditional
+
+
+warnings.errorId	integer	
+A unique code that identifies the particular error or warning that occurred. Your application can use error codes as identifiers in your customized error-handling algorithms.
+Occurrence: Conditional
+
+
+warnings.inputRefIds	array of string	
+An array of one or more reference IDs which identify the specific request element(s) most closely associated to the error or warning, if any.
+Occurrence: Conditional
+
+
+warnings.longMessage	string	
+A detailed description of the condition that caused the error or warning, and information on what to do to correct the problem.
+Occurrence: Conditional
+
+
+warnings.message	string	
+A description of the condition that caused the error or warning.
+Occurrence: Conditional
+
+
+warnings.outputRefIds	array of string	
+An array of one or more reference IDs which identify the specific response element(s) most closely associated to the error or warning, if any.
+Occurrence: Conditional
+
+
+warnings.parameters	array of ErrorParameterV3	
+Various warning and error messages return one or more variables that contain contextual information about the error or waring. This is often the field or value that triggered the error or warning.
+Occurrence: Conditional
+
+
+warnings.parameters.name	string	
+This type contains the name and value of an input parameter that contributed to a specific error or warning condition.
+Occurrence: Conditional
+
+
+warnings.parameters.value	string	
+This is the actual value that was passed in for the element specified in the name field.
+Occurrence: Conditional
+
+
+warnings.subdomain	string	
+The name of the subdomain in which the error or warning occurred.
+Occurrence: Conditional
+
+
+HTTP status codes
+This call can return one of the following HTTP status codes. For an overview of the status codes, see HTTP status codes in Using eBay RESTful APIs.
+
+Status	Meaning
+200	Success
+201	Created
+204	No Content
+400	Bad Request
+500	Internal Server Error
+Error codes
+For more on errors, plus the codes of other common errors, see Handling errors.
+
+Code	Domain	Category	Meaning
+25001	API_INVENTORY	APPLICATION	A system error has occurred. {additionalInfo}
+25002	API_INVENTORY	REQUEST	A user error has occurred. {additionalInfo}
+25003	API_INVENTORY	REQUEST	The eBay listing associated with the inventory item, or the unpublished offer has an invalid price. {additionalInfo}
+25004	API_INVENTORY	REQUEST	The eBay listing associated with the inventory item, or the unpublished offer has an invalid quantity. {additionalInfo}
+25005	API_INVENTORY	REQUEST	The eBay listing associated with the inventory item, or the unpublished offer has an invalid category ID. {additionalInfo}
+25006	API_INVENTORY	REQUEST	The eBay listing associated with the inventory item, or the unpublished offer has an invalid listing option. {additionalInfo}
+25007	API_INVENTORY	REQUEST	The eBay listing associated with the inventory item, or the unpublished offer has invalid data in the associated Fulfillment policy. {additionalInfo}
+25008	API_INVENTORY	REQUEST	The eBay listing associated with the inventory item, or the unpublished offer has invalid data in the associated Payment policy. {additionalInfo}
+25009	API_INVENTORY	REQUEST	The eBay listing associated with the inventory item, or the unpublished offer has invalid data in the associated Return policy. {additionalInfo}
+25011	API_INVENTORY	REQUEST	The eBay listing associated with the inventory item, or the unpublished offer has invalid tax information. {additionalInfo}
+25012	API_INVENTORY	REQUEST	Invalid inventory location. {additionalInfo}
+25013	API_INVENTORY	REQUEST	This error code is associated with multiple possible errors. See 25013 Invalid data in the Inventory Item Group for the full list of messages returned and any available troubleshooting information.
+25014	API_INVENTORY	REQUEST	The eBay listing associated with the inventory item, or the unpublished offer has invalid pictures. {additionalInfo}
+25015	API_INVENTORY	REQUEST	The eBay listing associated with the inventory item, or the unpublished offer has an invalid picture URL. {additionalInfo}
+25016	API_INVENTORY	REQUEST	The {fieldName} value is invalid. {additionalInfo}
+25017	API_INVENTORY	REQUEST	This error code is associated with multiple possible errors. See 25017 Missing information in fields for the full list of messages returned and any available troubleshooting information.
+25018	API_INVENTORY	REQUEST	This error code is associated with multiple possible errors. See 25018 Incomplete account information for the full list of messages returned and any available troubleshooting information.
+25019	API_INVENTORY	REQUEST	This error code is associated with multiple possible errors. See 25019 Cannot revise the listing for the full list of messages returned and any available troubleshooting information.
+25020	API_INVENTORY	REQUEST	The eBay listing associated with the inventory item, or the unpublished offer has invalid shipping package details. {additionalInfo}
+25021	API_INVENTORY	REQUEST	The eBay listing associated with the inventory item, or the unpublished offer has invalid item condition information. {additionalInfo}
+25022	API_INVENTORY	REQUEST	Invalid attribute. {fieldName}
+25023	API_INVENTORY	REQUEST	Invalid compatibility information. {additionalInfo}
+25025	API_INVENTORY	APPLICATION	Concurrent access of the same Inventory or Inventory Item Group object is not allowed. Please try again later.
+25026	API_INVENTORY	REQUEST	Selling limit exceeded. {additionalInfo}
+25097	API_INVENTORY	REQUEST	This listing is on hold due to a policy violation, and revisions are not possible. Please check your email for more information.
+25120	API_INVENTORY	REQUEST	When listing in {categoryName}, key information such as {fieldName} comes from eBay’s catalog and should be left blank.
+25121	API_INVENTORY	REQUEST	When listing in {categoryName}, sellers are required to adopt eBay’s catalog data which will provide all the necessary details for the product.
+25501	API_INVENTORY	REQUEST	The eBay listing associated with the inventory item, or the unpublished offer has an invalid picture. {additionalInfo}
+25502	API_INVENTORY	REQUEST	Invalid attribute information. {additionalInfo}
+25503	API_INVENTORY	REQUEST	The eBay listing associated with the inventory item, or the unpublished offer has invalid product information. {additionalInfo}
+25601	API_INVENTORY	REQUEST	{fieldName} is an invalid attribute.
+25604	API_INVENTORY	REQUEST	Input error. {additionalInfo}
+25701	API_INVENTORY	REQUEST	One or more of the supplied SKU(s) could not be found in the system.
+25702	API_INVENTORY	REQUEST	{skuValue} could not be found or is not available in the system.
+25707	API_INVENTORY	REQUEST	This is an invalid value for a SKU. Only alphanumeric characters can be used for SKUs, and their length must not exceed 50 characters.
+25708	API_INVENTORY	REQUEST	Invalid SKU.
+25709	API_INVENTORY	REQUEST	Invalid value for {fieldName}
+25710	API_INVENTORY	REQUEST	We didn't find the resource/entity you are requesting. Please verify the request.
+25713	API_INVENTORY	REQUEST	This Offer is not available : {additionalInfo}.
+25715	API_INVENTORY	REQUEST	Invalid values for dimensions and/or weight of shipping package.
+25759	API_INVENTORY	REQUEST	shipToLocationAvailability quantity value should be greater than or equal to auction allocation. Please provide valid quantity or unpublish auction offers of the sku.
+25759	API_INVENTORY	REQUEST	{replaceable_value} transaction is not possible as the parent listing is on-hold. Please check your email for further information.
+Warnings
+For more on warnings, plus the codes of other common warnings, see Handling errors.
+
+Code	Domain	Category	Meaning
+25096	API_INVENTORY	REQUEST	This listing is on hold due to a policy violation. You may revise it to resolve the situation. Please check your email for more information.
+25401	API_INVENTORY	APPLICATION	Invalid listing format removed. {additionalInfo}
+25402	API_INVENTORY	APPLICATION	System warning. {additionalInfo}
+25504	API_INVENTORY	APPLICATION	service {additionalInfo}
+25753	API_INVENTORY	REQUEST	listingStartDate is in the past or the offer is live. Value is not updated on the listing.
+Samples
+New to making API calls? Please see Making a Call.
+
+Note: Identifiers, such as order IDs or user IDs, and personal data in these samples might be anonymized or may no longer be active on eBay. If necessary, substitute current, relevant eBay data in your requests.
+
+Sample 1: Creating an Inventory Item
+This call will create an inventory item for the seller's acount.
+
+Input
+The SKU value associated with the inventory item to add is input into the end of the call URI. In this case, the SKU value for the inventory item is G********1.
+
+The total ship-to-home quantity for the product is 50.
+
+The condition of the product is NEW and all product details of the inventory item are provided in the product container.
+
+https://api.ebay.com/sell/inventory/v1/inventory_item/G********1
+
+  
+Output
+A successful call returns an HTTP status code of 204 and has no response payload.

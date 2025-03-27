@@ -325,16 +325,27 @@ export class EbayService {
       // Prepare a clean copy of the inventory item data for the API
       const inventoryItemData = { ...listingData.inventory_item };
       
-      // Make sure condition is a string for eBay API and is properly formatted
+      // Make sure condition is properly formatted for eBay API
       if (inventoryItemData.condition) {
-        // First ensure it's a string
+        // Make sure it's a string
         inventoryItemData.condition = String(inventoryItemData.condition);
         
-        // Validate that it's a valid eBay condition ID
-        const validConditionIds = ["1000", "1500", "1750", "2000", "2500", "3000", "4000", "5000", "6000", "7000"];
-        if (!validConditionIds.includes(inventoryItemData.condition)) {
-          console.warn(`Invalid condition ID: ${inventoryItemData.condition}. Defaulting to 1000 (New)`);
-          inventoryItemData.condition = "1000";
+        // Validate that it's a valid eBay condition enum value
+        const validConditionEnums = [
+          "NEW", "NEW_WITH_TAGS", "NEW_WITHOUT_TAGS", "NEW_WITH_DEFECTS", 
+          "LIKE_NEW", "VERY_GOOD", "GOOD", "ACCEPTABLE", "USED", 
+          "FOR_PARTS_OR_NOT_WORKING"
+        ];
+        
+        // Convert to uppercase to ensure matching
+        const upperCondition = inventoryItemData.condition.toUpperCase();
+        
+        if (!validConditionEnums.includes(upperCondition)) {
+          console.warn(`Invalid condition enum: ${inventoryItemData.condition}. Defaulting to NEW`);
+          inventoryItemData.condition = "NEW";
+        } else {
+          // Use the validated uppercase version
+          inventoryItemData.condition = upperCondition;
         }
       }
       
@@ -429,10 +440,10 @@ export class EbayService {
 
       if (!offerResponse.ok) {
         let errorMessage = "";
-        let errorDetail = {};
+        let errorDetail: Record<string, any> = {};
         try {
           const errorJson = await offerResponse.json();
-          errorDetail = errorJson;
+          errorDetail = errorJson as Record<string, any>;
           errorMessage = JSON.stringify(errorJson, null, 2);
         } catch (e) {
           errorMessage = await offerResponse.text();
@@ -459,12 +470,13 @@ export class EbayService {
       // Parse the successful response
       let offerId = '';
       try {
-        const offerResponseData = await offerResponse.json();
+        const offerResponseData = await offerResponse.json() as Record<string, any>;
         console.log("Full offer response:", JSON.stringify(offerResponseData, null, 2));
         
         // Ensure we get a valid offerId or create a predictable fallback
-        if (offerResponseData && typeof offerResponseData === 'object' && 'offerId' in offerResponseData) {
-          offerId = offerResponseData.offerId;
+        if (offerResponseData && typeof offerResponseData === 'object' && 'offerId' in offerResponseData && offerResponseData.offerId) {
+          // Access through index notation and explicitly convert to string to satisfy TypeScript
+          offerId = String(offerResponseData['offerId']);
         } else {
           // If we didn't get an offerId but the request was successful, generate a placeholder
           // This should rarely happen since the response should contain an offerId if successful

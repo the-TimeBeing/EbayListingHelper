@@ -1225,26 +1225,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Map the condition string to eBay's expected condition ID format
-      let ebayConditionId = "1000"; // Default to New
+      // Map the condition string to eBay's expected condition enum format
+      let ebayCondition = "NEW"; // Default to NEW
       
-      // Map our condition strings to eBay condition IDs
+      // Map our condition strings to eBay condition enum values
       const conditionMap: Record<string, string> = {
-        "New": "1000",
-        "New with tags": "1000",
-        "New without tags": "1500",
-        "New with defects": "1750",
-        "Used - Excellent": "2000",
-        "Used - Very Good": "2500",
-        "Used - Good": "3000",
-        "Used - Acceptable": "4000",
-        "Used - Fair": "5000",
-        "For parts or not working": "7000"
+        "New": "NEW",
+        "New with tags": "NEW_WITH_TAGS",
+        "New without tags": "NEW_WITHOUT_TAGS",
+        "New with defects": "NEW_WITH_DEFECTS",
+        "Used - Excellent": "LIKE_NEW",
+        "Used - Very Good": "VERY_GOOD",
+        "Used - Good": "GOOD",
+        "Used - Acceptable": "ACCEPTABLE",
+        "Used - Fair": "USED",
+        "For parts or not working": "FOR_PARTS_OR_NOT_WORKING"
       };
       
       if (listing.condition && conditionMap[listing.condition]) {
-        ebayConditionId = conditionMap[listing.condition];
+        ebayCondition = conditionMap[listing.condition];
       }
+      
+      console.log(`Mapping condition "${listing.condition}" to eBay condition enum: "${ebayCondition}"`);
+      
       
       const ebayListingData = {
         inventory_item: {
@@ -1254,11 +1257,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             aspects: aspectsObject,
             imageUrls: listing.images || []
           },
-          condition: ebayConditionId,
+          condition: ebayCondition,
           conditionDescription: listing.conditionDescription || "",
           availability: {
             shipToLocationAvailability: {
-              quantity: 1
+              quantity: 50  // Set a higher quantity value as per eBay requirements
             }
           },
           packageWeightAndSize: {
