@@ -1261,7 +1261,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           conditionDescription: listing.conditionDescription || "",
           availability: {
             shipToLocationAvailability: {
-              quantity: 50  // Set a higher quantity value as per eBay requirements
+              quantity: 1  // Setting back to 1 as requested
             }
           },
           packageWeightAndSize: {
