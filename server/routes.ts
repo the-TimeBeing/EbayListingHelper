@@ -4,6 +4,7 @@ import multer from "multer";
 import { storage } from "./storage";
 import { ebayService } from "./services/ebayService";
 import { openaiService } from "./services/openaiService";
+import { imgbbService } from "./services/imgbbService";
 import { saveBase64Image, getImageAsBase64, cleanupTempFiles, isValidBase64Image } from "./utils/fileUtils";
 import { z } from "zod";
 import { insertListingSchema } from "@shared/schema";
@@ -1370,8 +1371,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Format the data as eBay API expects it
       // Start with item specifics from the template if available, then add ours
       let aspectsObject: Record<string, string[]> = {
-        ...templateItemSpecifics,
-        "Condition": [listing.condition]
+        ...templateItemSpecifics
+        // Don't add condition to aspects - eBay expects condition in a separate field
+        // Keeping itemSpecifics only for the actual item specifics
       };
       
       // Only process our item specifics if it's a valid array
@@ -1419,12 +1421,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "Used - Very Good": "VERY_GOOD",
         "Used - Good": "GOOD",
         "Used - Acceptable": "ACCEPTABLE",
-        "Used - Fair": "USED",
-        "For parts or not working": "FOR_PARTS_OR_NOT_WORKING",
         
-        // Additional mappings for our frontend conditions
+        // Additional mappings for our frontend conditions (from constants.ts)
         "Like New": "LIKE_NEW",
-        "Used - Poor": "FOR_PARTS_OR_NOT_WORKING" // Closest match for poor condition
+        "Used - Fair": "ACCEPTABLE", // Map Fair to ACCEPTABLE as it's closest
+        "Used - Poor": "FOR_PARTS_OR_NOT_WORKING", // Map Poor to FOR_PARTS_OR_NOT_WORKING
+        
+        // Fallback mapping
+        "For parts or not working": "FOR_PARTS_OR_NOT_WORKING"
       };
       
       if (listing.condition && conditionMap[listing.condition]) {
@@ -1500,32 +1504,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       }
       
-      // Process images - make sure we're not sending base64 encoded images to eBay
+      // Process images - convert base64 encoded images to URLs for eBay
       // eBay requires image URLs, not base64 encoded data
-      // We'll filter out any images that are in base64 format
-      let validImageUrls = [];
+      let processedImageUrls = [];
       
       if (Array.isArray(ebayListingData.inventory_item.product.imageUrls)) {
-        validImageUrls = ebayListingData.inventory_item.product.imageUrls.filter(url => {
+        // Process each image URL
+        const uploadPromises = ebayListingData.inventory_item.product.imageUrls.map(async (url) => {
           // Check if the URL is a base64 encoded image
           const isBase64 = url.startsWith('data:image/');
+          
           if (isBase64) {
-            console.log("Filtering out base64 image. eBay requires image URLs, not base64 data.");
+            try {
+              console.log("Converting base64 image to URL using ImgBB service");
+              // Upload the base64 image to ImgBB and get a URL
+              const imageUrl = await imgbbService.uploadImage(url);
+              console.log("Successfully converted base64 to URL:", imageUrl);
+              return imageUrl;
+            } catch (error) {
+              console.error("Failed to upload image to ImgBB:", error);
+              return null; // Return null for failed uploads
+            }
+          } else {
+            // If it's already a URL, return it as is
+            return url;
           }
-          return !isBase64;
         });
         
-        // If we have no valid images after filtering, add a placeholder
-        if (validImageUrls.length === 0) {
+        // Wait for all image uploads to complete
+        const results = await Promise.all(uploadPromises);
+        
+        // Filter out any null values (failed uploads)
+        processedImageUrls = results.filter((url: string | null) => url !== null) as string[];
+        
+        // If we have no valid images after processing, add a placeholder
+        if (processedImageUrls.length === 0) {
           console.log("No valid image URLs found. Using a placeholder image.");
-          validImageUrls = ["https://ir.ebaystatic.com/pictures/aw/pics/stockimage1.jpg"];
+          processedImageUrls = ["https://ir.ebaystatic.com/pictures/aw/pics/stockimage1.jpg"];
         }
         
         // Update the image URLs
-        ebayListingData.inventory_item.product.imageUrls = validImageUrls;
+        ebayListingData.inventory_item.product.imageUrls = processedImageUrls;
+        console.log(`Successfully processed ${processedImageUrls.length} images for eBay listing`);
       }
       
-      console.log(`Final listing data with ${validImageUrls.length} valid images:`, 
+      console.log(`Final listing data with ${processedImageUrls.length} valid images:`, 
         JSON.stringify(ebayListingData, null, 2));
       
       // Create an eBay draft ID (mock in test mode, real in production)

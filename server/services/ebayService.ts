@@ -423,18 +423,18 @@ export class EbayService {
             currency: "USD"
           }
         },
-        categoryId: "139971", // Default to Video Game Accessories
+        categoryId: listingData.offer.categoryId || "139971", // Use the category ID from the offer data or default to Video Game Accessories
         listingPolicies: {
-          fulfillmentPolicy: {
+          fulfillmentPolicy: listingData.offer.listingPolicies?.fulfillmentPolicy || {
             shippingCost: {
               value: 5.00,
               currency: "USD"
             }
           },
-          paymentPolicy: {
+          paymentPolicy: listingData.offer.listingPolicies?.paymentPolicy || {
             paymentMethod: "PAYPAL"
           },
-          returnPolicy: {
+          returnPolicy: listingData.offer.listingPolicies?.returnPolicy || {
             returnsAccepted: true,
             returnPeriod: {
               value: 30,
@@ -443,6 +443,13 @@ export class EbayService {
           }
         }
       };
+      
+      console.log("Using offer data from template:", {
+        categoryId: offerData.categoryId,
+        hasFulfillmentPolicy: !!listingData.offer.listingPolicies?.fulfillmentPolicy,
+        hasPaymentPolicy: !!listingData.offer.listingPolicies?.paymentPolicy,
+        hasReturnPolicy: !!listingData.offer.listingPolicies?.returnPolicy
+      });
       
       // Map specific product types to more accurate eBay category IDs
       // This mapping helps ensure controllers go to the right category
