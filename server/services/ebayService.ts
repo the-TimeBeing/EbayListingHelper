@@ -580,7 +580,30 @@ export class EbayService {
   }
 
   async generateSandboxToken(): Promise<{
-    // ... existing code ...
+    access_token: string;
+    expires_in: number;
+    refresh_token: string;
+  }> {
+    // Use sandbox credentials
+    const sandboxCredentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
+    
+    const response = await fetch('https://api.sandbox.ebay.com/identity/v1/oauth2/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${sandboxCredentials}`
+      },
+      body: new URLSearchParams({
+        grant_type: 'client_credentials',
+        scope: 'https://api.ebay.com/oauth/api_scope'
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to get sandbox token');
+    }
+
+    return await response.json();
   }
 }
 
