@@ -34,7 +34,7 @@ interface EbayInventoryItem {
     title: string;
     description: string;
     imageUrls?: string[];
-    aspects?: Record<string, string[]>;
+    aspects: Record<string, string[]>; // Removed optional to match implementation
   };
   condition: string;
   conditionDescription?: string;
@@ -1040,6 +1040,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
         categoryName = imageSearchResults[0].categories[0].categoryName;
       }
       
+      // Convert template item specifics to our format
+      const formattedItemSpecifics: Record<string, string>[] = [];
+      
+      // Check if we have template item details to extract specifics from
+      if (req.session.templateItemDetails) {
+        const templateItem = req.session.templateItemDetails;
+        
+        // Extract item specifics if available from template
+        if (templateItem.itemSpecifics && Array.isArray(templateItem.itemSpecifics)) {
+          console.log("Using item specifics from template item");
+          
+          templateItem.itemSpecifics.forEach((spec: any) => {
+            if (spec && spec.name && spec.values && Array.isArray(spec.values) && spec.values.length > 0) {
+              // Format as our expected object structure with key-value pairs
+              formattedItemSpecifics.push({ [spec.name]: spec.values[0] });
+            }
+          });
+        } else if (templateItem.aspects) {
+          console.log("Using aspects from template item");
+          
+          // Convert aspects format to our item specifics format
+          Object.entries(templateItem.aspects).forEach(([name, values]: [string, any]) => {
+            if (Array.isArray(values) && values.length > 0) {
+              formattedItemSpecifics.push({ [name]: values[0] });
+            }
+          });
+        }
+      }
+      
+      // Always ensure some basic item specifics are present
+      // Check if we already have Brand in our specifics
+      if (!formattedItemSpecifics.some(spec => Object.keys(spec)[0] === "Brand") && 
+          listingContent.title.toLowerCase().includes("nintendo")) {
+        formattedItemSpecifics.push({ "Brand": "Nintendo" });
+      }
+      
+      // Check if we already have Platform in our specifics
+      if (!formattedItemSpecifics.some(spec => Object.keys(spec)[0] === "Platform") && 
+          listingContent.title.toLowerCase().includes("switch")) {
+        formattedItemSpecifics.push({ "Platform": "Nintendo Switch" });
+      }
+      
+      // Always include MPN if not already present
+      if (!formattedItemSpecifics.some(spec => Object.keys(spec)[0] === "MPN")) {
+        formattedItemSpecifics.push({ "MPN": "Does Not Apply" });
+      }
+      
+      console.log("Using formatted item specifics:", JSON.stringify(formattedItemSpecifics, null, 2));
+      
       const draftListing = {
         title: listingContent.title,
         description: listingContent.description,
@@ -1047,7 +1096,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         condition,
         conditionDescription: listingContent.conditionDescription,
         category: categoryName,
-        itemSpecifics: [],
+        itemSpecifics: formattedItemSpecifics,
         images: req.session.photos,
         userId: req.session.userId,
         status: 'draft'
@@ -1386,7 +1435,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             title: listing.title,
             description: listing.description,
             aspects: aspectsObject,
-            imageUrls: listing.images || []
+            imageUrls: Array.isArray(listing.images) ? listing.images : []
           },
           condition: ebayCondition,
           conditionDescription: listing.conditionDescription || "",
@@ -1410,7 +1459,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           },
           categoryId: templateCategoryId, // Use category ID from template
-          listingPolicies: {} // Initialize empty object that will be populated below
+          listingPolicies: {
+            fulfillmentPolicy: undefined,
+            paymentPolicy: undefined,
+            returnPolicy: undefined
+          } // Initialize with proper structure that will be populated below
         }
       };
       
