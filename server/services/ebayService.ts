@@ -130,51 +130,52 @@ export class EbayService {
   }
 
   async ensureValidToken(userId: number): Promise<string> {
-    console.log(`[EBAY SERVICE] Ensuring valid token for user ID: ${userId}`);
-    
     try {
-      const user = await storage.getUser(userId);
-      if (!user) {
-        console.error(`[EBAY SERVICE] User not found with ID: ${userId}`);
-        throw new Error('User not found');
+      // Get the current token for the user
+      const tokenData = await storage.getEbayToken(userId);
+      
+      if (!tokenData) {
+        console.error(`[EBAY SERVICE] No token found for user ${userId}`);
+        throw new Error(`No eBay token found for user ${userId}. Please authenticate with eBay first.`);
       }
-
-      if (!user.ebayToken || !user.ebayRefreshToken) {
-        console.error(`[EBAY SERVICE] User not authenticated with eBay, ID: ${userId}`);
-        throw new Error('User not authenticated with eBay');
-      }
-
-      // Check if token is expired or about to expire (within 5 minutes)
+      
+      // Check if the token is expired or will expire soon (within 5 minutes)
+      const expiresAt = new Date(tokenData.expiresAt);
       const now = new Date();
-      const tokenExpiry = user.ebayTokenExpiry;
-      const tokenNeedsRefresh = !tokenExpiry || tokenExpiry.getTime() - now.getTime() < 5 * 60 * 1000;
-
-      if (tokenNeedsRefresh && user.ebayRefreshToken) {
-        console.log('[EBAY SERVICE] Token needs refresh, refreshing...');
-        try {
-          const tokenData = await this.refreshAccessToken(user.ebayRefreshToken);
-          const expiryDate = new Date(now.getTime() + tokenData.expires_in * 1000);
-          
-          await storage.updateUserEbayTokens(
-            userId,
-            tokenData.access_token,
-            tokenData.refresh_token || user.ebayRefreshToken,
-            expiryDate
-          );
-          
-          console.log('[EBAY SERVICE] Token refreshed successfully');
-          return tokenData.access_token;
-        } catch (error) {
-          console.error('[EBAY SERVICE] Failed to refresh token:', error);
-          throw new Error('Failed to refresh eBay authentication');
+      const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000);
+      
+      // Log token expiration status
+      console.log(`[EBAY SERVICE] Token expiration check for user ${userId}:`);
+      console.log(`[EBAY SERVICE] Current time: ${now.toISOString()}`);
+      console.log(`[EBAY SERVICE] Token expires: ${expiresAt.toISOString()}`);
+      console.log(`[EBAY SERVICE] Token expired: ${expiresAt <= now}`);
+      console.log(`[EBAY SERVICE] Token expires soon: ${expiresAt <= fiveMinutesFromNow}`);
+      
+      if (expiresAt <= now) {
+        console.log(`[EBAY SERVICE] Token expired for user ${userId}, refreshing...`);
+        // Token is expired, try to refresh
+        if (!tokenData.refreshToken) {
+          throw new Error("Refresh token not available. Please re-authenticate with eBay.");
         }
+        
+        return await this.refreshToken(userId, tokenData.refreshToken);
+      } else if (expiresAt <= fiveMinutesFromNow) {
+        console.log(`[EBAY SERVICE] Token expires soon for user ${userId}, refreshing proactively...`);
+        // Token will expire soon, proactively refresh it
+        if (!tokenData.refreshToken) {
+          // If no refresh token but access token is still valid, return the current token
+          return tokenData.accessToken;
+        }
+        
+        return await this.refreshToken(userId, tokenData.refreshToken);
       }
-
-      console.log('[EBAY SERVICE] Using existing valid token');
-      return user.ebayToken;
+      
+      // Token is valid and not expiring soon
+      console.log(`[EBAY SERVICE] Using existing valid token for user ${userId}`);
+      return tokenData.accessToken;
     } catch (error) {
-      console.error('[EBAY SERVICE] Error in ensureValidToken:', error);
-      throw new Error('No valid eBay token available. Please authenticate with eBay first.');
+      console.error(`[EBAY SERVICE] Error ensuring valid token:`, error);
+      throw new Error(`eBay authentication error: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -428,6 +429,31 @@ export class EbayService {
         }
       };
       
+      // Map specific product types to more accurate eBay category IDs
+      // This mapping helps ensure controllers go to the right category
+      const title = inventoryItemData.product.title?.toLowerCase() || '';
+      
+      // For Nintendo Switch controllers, use the proper category
+      if (title.includes('nintendo') && title.includes('switch') && title.includes('controller')) {
+        // Nintendo Switch Controllers category
+        offerData.categoryId = "117042";
+        console.log("Mapped to Nintendo Switch Controllers category (117042)");
+      }
+      // For generic Nintendo accessories
+      else if (title.includes('nintendo') && title.includes('switch')) {
+        // Nintendo Switch Accessories category
+        offerData.categoryId = "139971";
+        console.log("Mapped to Nintendo Switch Accessories category (139971)");
+      }
+      // For any video game controllers
+      else if (title.includes('controller')) {
+        // Video Game Controllers category
+        offerData.categoryId = "117042";
+        console.log("Mapped to Video Game Controllers category (117042)");
+      }
+      
+      console.log("Using category ID:", offerData.categoryId);
+      
       const offerResponse = await fetch(`${this.getBaseUrl()}/sell/inventory/v1/offer`, {
         method: 'POST',
         headers: {
@@ -522,6 +548,39 @@ export class EbayService {
 
     const data = await response.json() as { imageUrl?: string };
     return data.imageUrl || '';
+  }
+
+  // Add the missing refreshToken method needed by ensureValidToken
+  async refreshToken(userId: number, refreshToken: string): Promise<string> {
+    console.log(`[EBAY SERVICE] Refreshing token for user ${userId} using refresh token`);
+    try {
+      const tokenData = await this.refreshAccessToken(refreshToken);
+      
+      if (!tokenData || !tokenData.access_token) {
+        throw new Error("Failed to refresh eBay token - invalid response");
+      }
+      
+      const now = new Date();
+      const expiryDate = new Date(now.getTime() + (tokenData.expires_in || 7200) * 1000);
+      
+      // Update the storage with the new tokens
+      await storage.updateUserEbayTokens(
+        userId,
+        tokenData.access_token,
+        tokenData.refresh_token || refreshToken, // Use new refresh token if provided, otherwise keep the old one
+        expiryDate
+      );
+      
+      console.log(`[EBAY SERVICE] Token successfully refreshed for user ${userId}, expires at ${expiryDate.toISOString()}`);
+      return tokenData.access_token;
+    } catch (error) {
+      console.error(`[EBAY SERVICE] Error refreshing token:`, error);
+      throw new Error(`Failed to refresh eBay token: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async generateSandboxToken(): Promise<{
+    // ... existing code ...
   }
 }
 

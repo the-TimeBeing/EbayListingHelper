@@ -6,12 +6,15 @@ import {
   type Listing, 
   type InsertListing 
 } from "@shared/schema";
+import { eq } from "drizzle-orm";
+import { db } from "../db";
 
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUserEbayTokens(id: number, ebayToken: string, refreshToken: string, expiryDate: Date): Promise<User>;
+  getEbayToken(userId: number): Promise<{ accessToken: string | null; refreshToken: string | null; expiresAt: Date | null } | null>;
   
   createListing(listing: InsertListing): Promise<Listing>;
   getListing(id: number): Promise<Listing | undefined>;
@@ -70,6 +73,25 @@ export class MemStorage implements IStorage {
 
     this.users.set(id, updatedUser);
     return updatedUser;
+  }
+
+  async getEbayToken(userId: number) {
+    try {
+      const user = await this.getUser(userId);
+      
+      if (!user || !user.ebayToken) {
+        return null;
+      }
+      
+      return {
+        accessToken: user.ebayToken,
+        refreshToken: user.ebayRefreshToken,
+        expiresAt: user.ebayTokenExpiry
+      };
+    } catch (error) {
+      console.error('Error getting user eBay token:', error);
+      throw error;
+    }
   }
 
   async createListing(insertListing: InsertListing): Promise<Listing> {

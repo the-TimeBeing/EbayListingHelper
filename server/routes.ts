@@ -1225,6 +1225,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // Add required item specifics for gaming controllers if they don't exist
+      // This is especially important for Nintendo Switch controllers
+      if (!aspectsObject["Brand"] && listing.title.toLowerCase().includes("nintendo")) {
+        aspectsObject["Brand"] = ["Nintendo"];
+      }
+      
+      if (!aspectsObject["Platform"] && listing.title.toLowerCase().includes("switch")) {
+        aspectsObject["Platform"] = ["Nintendo Switch"];
+      }
+      
+      if (!aspectsObject["MPN"]) {
+        aspectsObject["MPN"] = ["Does Not Apply"];
+      }
+      
+      if (!aspectsObject["Type"] && listing.title.toLowerCase().includes("controller")) {
+        aspectsObject["Type"] = ["Controller"];
+      }
+      
+      if (!aspectsObject["Color"] && listing.title.toLowerCase().includes("pro controller")) {
+        aspectsObject["Color"] = ["Black"];  // Default color for Pro controllers
+      }
+      
+      if (!aspectsObject["Compatible Model"] && listing.title.toLowerCase().includes("switch")) {
+        aspectsObject["Compatible Model"] = ["Nintendo Switch"];
+      }
+      
+      console.log("Final aspects object:", JSON.stringify(aspectsObject, null, 2));
+      
       // Map the condition string to eBay's expected condition enum format
       let ebayCondition = "NEW"; // Default to NEW
       
@@ -1280,6 +1308,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
       };
+      
+      // Process images - make sure we're not sending base64 encoded images to eBay
+      // eBay requires image URLs, not base64 encoded data
+      // We'll filter out any images that are in base64 format
+      let validImageUrls = [];
+      
+      if (Array.isArray(ebayListingData.inventory_item.product.imageUrls)) {
+        validImageUrls = ebayListingData.inventory_item.product.imageUrls.filter(url => {
+          // Check if the URL is a base64 encoded image
+          const isBase64 = url.startsWith('data:image/');
+          if (isBase64) {
+            console.log("Filtering out base64 image. eBay requires image URLs, not base64 data.");
+          }
+          return !isBase64;
+        });
+        
+        // If we have no valid images after filtering, add a placeholder
+        if (validImageUrls.length === 0) {
+          console.log("No valid image URLs found. Using a placeholder image.");
+          validImageUrls = ["https://ir.ebaystatic.com/pictures/aw/pics/stockimage1.jpg"];
+        }
+        
+        // Update the image URLs
+        ebayListingData.inventory_item.product.imageUrls = validImageUrls;
+      }
+      
+      console.log(`Final listing data with ${validImageUrls.length} valid images:`, 
+        JSON.stringify(ebayListingData, null, 2));
       
       // Create an eBay draft ID (mock in test mode, real in production)
       let ebayDraftId: string;
