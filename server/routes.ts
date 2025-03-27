@@ -1410,6 +1410,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Map our condition strings to eBay condition enum values
       const conditionMap: Record<string, string> = {
+        // Standard eBay condition mapping
         "New": "NEW",
         "New with tags": "NEW_WITH_TAGS",
         "New without tags": "NEW_WITHOUT_TAGS",
@@ -1419,7 +1420,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "Used - Good": "GOOD",
         "Used - Acceptable": "ACCEPTABLE",
         "Used - Fair": "USED",
-        "For parts or not working": "FOR_PARTS_OR_NOT_WORKING"
+        "For parts or not working": "FOR_PARTS_OR_NOT_WORKING",
+        
+        // Additional mappings for our frontend conditions
+        "Like New": "LIKE_NEW",
+        "Used - Poor": "FOR_PARTS_OR_NOT_WORKING" // Closest match for poor condition
       };
       
       if (listing.condition && conditionMap[listing.condition]) {

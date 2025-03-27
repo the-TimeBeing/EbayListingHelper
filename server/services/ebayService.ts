@@ -338,15 +338,30 @@ export class EbayService {
           "FOR_PARTS_OR_NOT_WORKING"
         ];
         
-        // Convert to uppercase to ensure matching
+        // First, check if it's already a valid enum (case-insensitive)
         const upperCondition = inventoryItemData.condition.toUpperCase();
         
-        if (!validConditionEnums.includes(upperCondition)) {
-          console.warn(`Invalid condition enum: ${inventoryItemData.condition}. Defaulting to NEW`);
-          inventoryItemData.condition = "NEW";
-        } else {
+        if (validConditionEnums.includes(upperCondition)) {
           // Use the validated uppercase version
           inventoryItemData.condition = upperCondition;
+          console.log(`Using validated condition: ${inventoryItemData.condition}`);
+        } else {
+          // If not a valid enum, attempt to map from our frontend conditions
+          const conditionMap: Record<string, string> = {
+            "New": "NEW",
+            "Like New": "LIKE_NEW",
+            "Used - Good": "GOOD",
+            "Used - Fair": "USED",
+            "Used - Poor": "FOR_PARTS_OR_NOT_WORKING"
+          };
+          
+          if (conditionMap[inventoryItemData.condition]) {
+            inventoryItemData.condition = conditionMap[inventoryItemData.condition];
+            console.log(`Mapped condition "${inventoryItemData.condition}" to eBay format`);
+          } else {
+            console.warn(`Invalid condition enum: ${inventoryItemData.condition}. Defaulting to NEW`);
+            inventoryItemData.condition = "NEW";
+          }
         }
       }
       
