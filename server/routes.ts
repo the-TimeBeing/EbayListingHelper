@@ -1593,10 +1593,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ebayDraftId = `error-draft-${Date.now()}`;
           console.log(`Error creating eBay draft, using fallback ID: ${ebayDraftId}`);
           
-          // Return the error with the request JSON for debugging
+          // Return the error with the full request JSON data
           return res.status(500).json({ 
             message: "Failed to push listing to eBay", 
-            error: errorMessage,
+            error: `Error: ${error instanceof Error ? error.message : String(error)}\n\nComplete request JSON sent to eBay API:\n${JSON.stringify(ebayListingData, null, 2)}`,
             requestData: ebayListingData
           });
         }
@@ -1614,7 +1614,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Push to eBay error:", error);
-      res.status(500).json({ message: "Failed to push listing to eBay", error: error instanceof Error ? error.message : String(error) });
+      
+      // Capture any available request data to include in the error
+      let requestData = { listingId };
+      
+      try {
+        // Attempt to retrieve the listing again to include its data in the error
+        const errorListing = await storage.getListing(listingId);
+        if (errorListing) {
+          requestData = {
+            ...requestData,
+            title: errorListing.title,
+            condition: errorListing.condition,
+            price: errorListing.price,
+            description: errorListing.description ? errorListing.description.substring(0, 100) + "..." : null,
+            images: Array.isArray(errorListing.images) ? errorListing.images.length : 0
+          };
+        }
+      } catch (dataError) {
+        // If we can't get the listing data, just continue with the basics
+        console.error("Failed to include listing data in error:", dataError);
+      }
+      
+      res.status(500).json({ 
+        message: "Failed to push listing to eBay", 
+        error: `Error: ${error instanceof Error ? error.message : String(error)}\n\nListing data: ${JSON.stringify(requestData, null, 2)}`,
+        requestData
+      });
     }
   });
 
