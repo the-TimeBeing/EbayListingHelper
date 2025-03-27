@@ -131,9 +131,26 @@ export default function ListingDetailsPage() {
         errorMessage = error;
       }
 
+      // Check if the error message is very long (contains JSON data)
+      let truncatedMessage = errorMessage;
+      
+      // For very long error messages with JSON data, create a more user-friendly message
+      // but preserve the full JSON for console debugging
+      if (errorMessage.length > 300 && (errorMessage.includes('{') || errorMessage.includes('['))) {
+        console.log("Full eBay error data:", errorMessage);
+        
+        // Create a shorter message for the toast
+        if (errorMessage.includes('Request data:')) {
+          const parts = errorMessage.split('Request data:');
+          truncatedMessage = parts[0] + '(Request data available in console)';
+        } else {
+          truncatedMessage = "Failed to push listing to eBay. See console for details.";
+        }
+      }
+      
       toast({
         title: "eBay Connection Error",
-        description: errorMessage,
+        description: truncatedMessage,
         variant: "destructive"
       });
     } finally {

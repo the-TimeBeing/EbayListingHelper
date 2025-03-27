@@ -1578,13 +1578,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         // Call the actual eBay API in production mode
         try {
+          // Save the raw request JSON for debugging before sending to eBay
+          const requestJson = JSON.stringify(ebayListingData, null, 2);
+          console.log("About to send to eBay API:", requestJson);
+          
           ebayDraftId = await ebayService.createDraftListing(req.session.userId, ebayListingData);
           console.log(`Successfully created eBay draft listing with ID: ${ebayDraftId}`);
         } catch (error) {
           console.error("Error creating eBay draft listing:", error);
-          // We'll still create a listing in case of error, but log the failure
+          // Include the request JSON in the error message
+          const errorMessage = `Error creating eBay listing. Request data: ${JSON.stringify(ebayListingData, null, 2)}. Error: ${error instanceof Error ? error.message : String(error)}`;
+          
+          // We'll still create a listing in case of error, but with a detailed error message
           ebayDraftId = `error-draft-${Date.now()}`;
           console.log(`Error creating eBay draft, using fallback ID: ${ebayDraftId}`);
+          
+          // Return the error with the request JSON for debugging
+          return res.status(500).json({ 
+            message: "Failed to push listing to eBay", 
+            error: errorMessage,
+            requestData: ebayListingData
+          });
         }
       }
 

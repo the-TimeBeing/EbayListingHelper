@@ -390,6 +390,7 @@ export class EbayService {
           errorMessage = await inventoryItemResponse.text();
         }
         console.error("eBay inventory item creation failed:", errorMessage);
+        console.error("Request data sent to eBay:", JSON.stringify(inventoryItemData, null, 2));
         
         // Check for specific error types and provide more helpful messages
         if (typeof errorDetail === 'object' && errorDetail !== null) {
@@ -400,13 +401,15 @@ export class EbayService {
               const mainError = ebayErrors[0];
               console.error("eBay specific error:", mainError);
               
-              // Build a more specific error message
-              throw new Error(`eBay error: ${mainError.message || 'Unknown eBay error'}`);
+              // Build a more specific error message with additional request context
+              const detailedError = `eBay error: ${mainError.message || 'Unknown eBay error'}. The sent inventory item data: ${JSON.stringify(inventoryItemData, null, 2)}`;
+              throw new Error(detailedError);
             }
           }
         }
         
-        throw new Error(`eBay inventory item creation failed: ${errorMessage}`);
+        // Full error context with request data
+        throw new Error(`eBay inventory item creation failed: ${errorMessage}. Request data: ${JSON.stringify(inventoryItemData, null, 2)}`);
       }
       
       console.log(`Successfully created eBay inventory item with SKU: ${inventoryItemSku}`);
@@ -497,6 +500,7 @@ export class EbayService {
           errorMessage = await offerResponse.text();
         }
         console.error("eBay offer creation failed:", errorMessage);
+        console.error("Offer data sent to eBay:", JSON.stringify(offerData, null, 2));
         
         // Check for specific eBay API error cases
         if (typeof errorDetail === 'object' && errorDetail !== null) {
@@ -506,13 +510,15 @@ export class EbayService {
               const mainError = ebayErrors[0];
               console.error("eBay specific offer error:", mainError);
               
-              // Build a more specific error message
-              throw new Error(`eBay offer error: ${mainError.message || 'Unknown eBay error'}`);
+              // Build a more specific error message with request data
+              const detailedError = `eBay offer error: ${mainError.message || 'Unknown eBay error'}. The sent offer data: ${JSON.stringify(offerData, null, 2)}`;
+              throw new Error(detailedError);
             }
           }
         }
         
-        throw new Error(`eBay offer creation failed: ${errorMessage}`);
+        // Full error context with request data
+        throw new Error(`eBay offer creation failed: ${errorMessage}. Offer data: ${JSON.stringify(offerData, null, 2)}`);
       }
       
       // Parse the successful response
