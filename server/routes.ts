@@ -45,6 +45,13 @@ interface EbayInventoryItem {
     }
   };
   packageWeightAndSize?: {
+    dimensions?: {
+      height: number;
+      length: number;
+      width: number;
+      unit: string;
+    };
+    packageType?: string;
     weight: {
       value: number;
       unit: string;
@@ -1368,12 +1375,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Format the data as eBay API expects it
-      // Start with item specifics from the template if available, then add ours
+      // Format the data as eBay API expects it according to the format:
+      // { "Feature": ["Value1", "Value2"], "Brand": ["Samsung"] }
       let aspectsObject: Record<string, string[]> = {
         ...templateItemSpecifics
         // Don't add condition to aspects - eBay expects condition in a separate field
-        // Keeping itemSpecifics only for the actual item specifics
       };
       
       // Only process our item specifics if it's a valid array
@@ -1385,7 +1391,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const key = keys[0];
               const value = spec[key];
               if (value) {
-                aspectsObject[key] = [value.toString()];
+                // Always ensure the value is an array of strings
+                if (Array.isArray(value)) {
+                  aspectsObject[key] = value.map(v => v.toString());
+                } else {
+                  aspectsObject[key] = [value.toString()];
+                }
               }
             }
           }
@@ -1443,7 +1454,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           product: {
             title: listing.title,
             description: listing.description,
-            aspects: aspectsObject,
+            aspects: aspectsObject, // This is already in the correct format: { "Feature": ["Value1", "Value2"] }
             imageUrls: Array.isArray(listing.images) ? listing.images : []
           },
           condition: ebayCondition,
@@ -1454,8 +1465,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           },
           packageWeightAndSize: {
+            dimensions: {
+              height: 5,
+              length: 10,
+              width: 15,
+              unit: "INCH"
+            },
+            packageType: "MAILING_BOX",
             weight: {
-              value: 1,
+              value: 2,
               unit: "POUND"
             }
           }
