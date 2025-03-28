@@ -1,0 +1,76 @@
+def validate_ebay_listing(data: dict) -> tuple[bool, list[str]]:
+    errors = []
+
+    try:
+        # Top-level check
+        if "inventory_item" not in data:
+            errors.append("Missing 'inventory_item'")
+        if "offer" not in data:
+            errors.append("Missing 'offer'")
+
+        if errors:
+            return False, errors
+
+        item = data["inventory_item"]
+        offer = data["offer"]
+
+        # Required inventory_item fields
+        required_item_fields = ["product", "condition", "availability", "packageWeightAndSize"]
+        for field in required_item_fields:
+            if field not in item:
+                errors.append(f"Missing 'inventory_item.{field}'")
+
+        # Product section
+        product = item.get("product", {})
+        if not isinstance(product.get("title"), str) or not product["title"].strip():
+            errors.append("Missing or invalid 'product.title'")
+        if not isinstance(product.get("description"), str) or not product["description"].strip():
+            errors.append("Missing or invalid 'product.description'")
+        if not isinstance(product.get("aspects"), dict):
+            errors.append("Missing or invalid 'product.aspects'")
+        if not isinstance(product.get("imageUrls"), list) or not product["imageUrls"]:
+            errors.append("Missing or empty 'product.imageUrls'")
+
+        # Condition
+        valid_conditions = ["NEW", "USED", "GOOD", "VERY_GOOD", "ACCEPTABLE"]
+        if item.get("condition") not in valid_conditions:
+            errors.append(f"Invalid 'condition'. Must be one of {valid_conditions}")
+
+        # Availability
+        avail = item.get("availability", {}).get("shipToLocationAvailability", {})
+        if "quantity" not in avail:
+            errors.append("Missing 'availability.shipToLocationAvailability.quantity'")
+
+        # Package weight and size
+        pkg = item.get("packageWeightAndSize", {})
+        dims = pkg.get("dimensions", {})
+        weight = pkg.get("weight", {})
+        if not all(k in dims for k in ["height", "length", "width", "unit"]):
+            errors.append("Missing one or more fields in 'packageWeightAndSize.dimensions'")
+        if "packageType" not in pkg:
+            errors.append("Missing 'packageWeightAndSize.packageType'")
+        if not all(k in weight for k in ["value", "unit"]):
+            errors.append("Missing one or more fields in 'packageWeightAndSize.weight'")
+
+        # Offer pricing
+        price = offer.get("pricingSummary", {}).get("price", {})
+        if not isinstance(price.get("value"), (float, int)):
+            errors.append("Missing or invalid 'offer.pricingSummary.price.value'")
+        if not price.get("currency"):
+            errors.append("Missing 'offer.pricingSummary.price.currency'")
+
+        # Category ID
+        if not offer.get("categoryId"):
+            errors.append("Missing 'offer.categoryId'")
+
+        # Listing policies - should use IDs
+        policies = offer.get("listingPolicies", {})
+        for field in ["fulfillmentPolicyId", "paymentPolicyId", "returnPolicyId"]:
+            if field not in policies or not isinstance(policies[field], str) or not policies[field].strip():
+                errors.append(f"Missing or invalid '{field}' in 'listingPolicies' (must be a string ID)")
+
+        is_valid = len(errors) == 0
+        return is_valid, errors
+
+    except Exception as e:
+        return False, [f"Exception during validation: {str(e)}"]

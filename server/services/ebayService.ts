@@ -1,6 +1,7 @@
 import fetch from 'node-fetch';
 import { EbayOAuthResponse, EbayItemSummary, EbaySoldItem } from '@shared/types';
 import { storage } from '../storage';
+import { validateEbayListing } from '../utils/ebayValidator';
 
 export class EbayService {
   private clientId: string;
@@ -319,6 +320,15 @@ export class EbayService {
     
     try {
       console.log("Creating eBay draft listing with data:", JSON.stringify(listingData, null, 2));
+      
+      // Validate the listing data before making any API calls
+      const [isValid, validationErrors] = validateEbayListing(listingData);
+      if (!isValid) {
+        console.error("eBay listing validation failed:", validationErrors);
+        throw new Error(`Validation errors found in eBay listing data: ${validationErrors.join(", ")}`);
+      }
+      
+      console.log("✅ eBay listing data passed validation checks");
       
       // Step 1: Create inventory item
       // Generate a SKU that will be unique to this listing

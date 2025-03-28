@@ -6,6 +6,7 @@ import { ebayService } from "./services/ebayService";
 import { openaiService } from "./services/openaiService";
 import { imgbbService } from "./services/imgbbService";
 import { saveBase64Image, getImageAsBase64, cleanupTempFiles, isValidBase64Image } from "./utils/fileUtils";
+import { validateEbayListing } from "./utils/ebayValidator";
 import { z } from "zod";
 import { insertListingSchema } from "@shared/schema";
 import { EbayItemSummary, EbaySoldItem } from "@shared/types";
@@ -1573,6 +1574,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Final listing data with ${processedImageUrls.length} valid images:`, 
         JSON.stringify(ebayListingData, null, 2));
+      
+      // Validate the eBay listing data before sending it to the API
+      const [isValid, validationErrors] = validateEbayListing(ebayListingData);
+      if (!isValid) {
+        console.error("eBay listing validation failed:", validationErrors);
+        return res.status(400).json({
+          message: "Invalid eBay listing data",
+          errors: validationErrors,
+          data: ebayListingData
+        });
+      }
+      
+      console.log("✅ eBay listing data passed validation");
       
       // Create an eBay draft ID (mock in test mode, real in production)
       let ebayDraftId: string;

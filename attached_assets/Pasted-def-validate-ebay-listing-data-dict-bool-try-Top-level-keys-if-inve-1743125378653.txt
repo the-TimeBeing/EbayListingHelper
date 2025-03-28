@@ -1,0 +1,64 @@
+def validate_ebay_listing(data: dict) -> bool:
+    try:
+        # Top-level keys
+        if "inventory_item" not in data or "offer" not in data:
+            return False
+
+        item = data["inventory_item"]
+        offer = data["offer"]
+
+        # Required fields for inventory item
+        required_item_fields = ["product", "condition", "availability", "packageWeightAndSize"]
+        if not all(field in item for field in required_item_fields):
+            return False
+
+        product = item["product"]
+        if not isinstance(product.get("title"), str) or not product["title"].strip():
+            return False
+        if not isinstance(product.get("description"), str) or not product["description"].strip():
+            return False
+        if not isinstance(product.get("aspects"), dict):
+            return False
+        if not isinstance(product.get("imageUrls"), list) or not product["imageUrls"]:
+            return False
+
+        # Condition
+        if item["condition"] not in ["NEW", "USED", "GOOD", "VERY_GOOD", "ACCEPTABLE"]:
+            return False
+
+        # Availability
+        if "shipToLocationAvailability" not in item["availability"]:
+            return False
+        if "quantity" not in item["availability"]["shipToLocationAvailability"]:
+            return False
+
+        # Package weight and size
+        pkg = item["packageWeightAndSize"]
+        if "dimensions" not in pkg or "weight" not in pkg or "packageType" not in pkg:
+            return False
+
+        # Offer validation
+        if "pricingSummary" not in offer or "price" not in offer["pricingSummary"]:
+            return False
+        price = offer["pricingSummary"]["price"]
+        if not isinstance(price.get("value"), (float, int)) or not price.get("currency"):
+            return False
+
+        # Category
+        if not offer.get("categoryId"):
+            return False
+
+        # Listing policies: must reference IDs, not define inline
+        policies = offer.get("listingPolicies", {})
+        if not all(
+            k in policies for k in ["fulfillmentPolicyId", "paymentPolicyId", "returnPolicyId"]
+        ):
+            return False
+        if not all(isinstance(policies[k], str) and policies[k] for k in policies):
+            return False
+
+        return True
+
+    except Exception as e:
+        print(f"Validation error: {e}")
+        return False
