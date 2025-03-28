@@ -1,0 +1,102 @@
+🔧 The Error
+You're getting a 500 Internal Server Error from eBay with the message:
+
+"Failed to push listing to eBay"
+"eBay error: Invalid request"
+
+This means your app successfully made the API call, but eBay rejected it due to invalid request data. Not necessarily your app's fault—eBay's API is picky, and something in the request doesn’t meet its expectations.
+
+🧩 Your JSON Payload - What's Being Sent
+You’re combining two eBay API calls into one payload:
+
+inventory_item – The actual product details (title, description, condition, shipping, etc.)
+
+offer – The sale details (price, category, fulfillment, payment, return policy)
+
+That structure is fine if you're using eBay’s Inventory API, particularly the createOrReplaceInventoryItem and createOffer flow.
+
+🚨 What’s Likely Wrong
+Here are the common red flags in your JSON:
+
+1. 🔴 Invalid listingPolicies Format
+You're using:
+
+json
+Copy
+Edit
+"listingPolicies": {
+  "fulfillmentPolicy": [ { ... } ],
+  "paymentPolicy": {
+    "paymentMethod": {
+      "paymentMethodType": "OTHER"
+    }
+  },
+  ...
+}
+But eBay expects listingPolicies to reference policy IDs, not define the whole policy inline. You should be using something like:
+
+json
+Copy
+Edit
+"listingPolicies": {
+  "fulfillmentPolicyId": "123456",
+  "paymentPolicyId": "654321",
+  "returnPolicyId": "abcdef"
+}
+❗ eBay requires that you create these policies in the Seller Hub and get their IDs via the GET /account/fulfillment_policy, etc.
+
+2. 🟡 "paymentMethodType": "OTHER"
+That’s not a valid option unless you’re using a specific legacy or partner mode. eBay typically handles payments through eBay Managed Payments, and you don't need to specify methods like this anymore. Instead, link to your payment policy via paymentPolicyId.
+
+3. 🟠 Shipping Format:
+The fulfillment/shipping policy you're trying to define in-line with:
+
+json
+Copy
+Edit
+"shippingServiceCode": "Standard Shipping from outside US",
+"type": "Standard Shipping from outside",
+...
+This again should not be inline. eBay expects shipping info to be part of your fulfillment policy, referenced via ID.
+
+4. 🟢 Everything else looks mostly okay
+The item info (title, description, image URL, weight, etc.) is well-structured and valid.
+
+✅ How to Fix It
+Create Listing Policies in eBay Seller Hub:
+Log in to your eBay account's business policies page and create:
+
+Fulfillment Policy (shipping)
+
+Payment Policy
+
+Return Policy
+
+Get Their IDs:
+Use the Account API to list your policies and get their IDs:
+
+GET /account/fulfillment_policy
+
+GET /account/payment_policy
+
+GET /account/return_policy
+
+Update your JSON like this:
+
+json
+Copy
+Edit
+"offer": {
+  "pricingSummary": {
+    "price": {
+      "value": 17.47,
+      "currency": "USD"
+    }
+  },
+  "categoryId": "261186",
+  "listingPolicies": {
+    "fulfillmentPolicyId": "your-fulfillment-id",
+    "paymentPolicyId": "your-payment-id",
+    "returnPolicyId": "your-return-id"
+  }
+}

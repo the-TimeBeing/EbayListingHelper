@@ -415,6 +415,7 @@ export class EbayService {
       console.log(`Successfully created eBay inventory item with SKU: ${inventoryItemSku}`);
       
       // Step 2: Create an offer for the inventory item
+      // Based on eBay API requirements, we need to use policy IDs instead of inline policies
       const offerData = {
         sku: inventoryItemSku,
         marketplaceId: "EBAY_US",
@@ -427,31 +428,41 @@ export class EbayService {
           }
         },
         categoryId: listingData.offer.categoryId || "139971", // Use the category ID from the offer data or default to Video Game Accessories
-        listingPolicies: {
-          fulfillmentPolicy: listingData.offer.listingPolicies?.fulfillmentPolicy || {
-            shippingCost: {
-              value: 5.00,
-              currency: "USD"
-            }
-          },
-          paymentPolicy: listingData.offer.listingPolicies?.paymentPolicy || {
-            paymentMethod: "PAYPAL"
-          },
-          returnPolicy: listingData.offer.listingPolicies?.returnPolicy || {
-            returnsAccepted: true,
-            returnPeriod: {
-              value: 30,
-              unit: "DAY"
-            }
-          }
-        }
+        listingPolicies: {} as Record<string, string>
       };
+      
+      // Check if we have policy IDs in the incoming data (preferred method)
+      if (listingData.offer.listingPolicies?.fulfillmentPolicyId) {
+        // Using policy IDs is the recommended approach
+        offerData.listingPolicies["fulfillmentPolicyId"] = listingData.offer.listingPolicies.fulfillmentPolicyId;
+      }
+      
+      if (listingData.offer.listingPolicies?.paymentPolicyId) {
+        offerData.listingPolicies["paymentPolicyId"] = listingData.offer.listingPolicies.paymentPolicyId;
+      }
+      
+      if (listingData.offer.listingPolicies?.returnPolicyId) {
+        offerData.listingPolicies["returnPolicyId"] = listingData.offer.listingPolicies.returnPolicyId;
+      }
+      
+      // If no policy IDs are provided, use default IDs
+      // These IDs should come from eBay Seller Hub in a production environment
+      if (!listingData.offer.listingPolicies?.fulfillmentPolicyId && 
+          !listingData.offer.listingPolicies?.paymentPolicyId && 
+          !listingData.offer.listingPolicies?.returnPolicyId) {
+        console.warn("No policy IDs found - using default values. In production, get these from eBay Seller Hub.");
+        
+        // For testing only - in production, these must be valid policy IDs from the seller's account
+        offerData.listingPolicies["fulfillmentPolicyId"] = "default-fulfillment-policy";
+        offerData.listingPolicies["paymentPolicyId"] = "default-payment-policy";
+        offerData.listingPolicies["returnPolicyId"] = "default-return-policy";
+      }
       
       console.log("Using offer data from template:", {
         categoryId: offerData.categoryId,
-        hasFulfillmentPolicy: !!listingData.offer.listingPolicies?.fulfillmentPolicy,
-        hasPaymentPolicy: !!listingData.offer.listingPolicies?.paymentPolicy,
-        hasReturnPolicy: !!listingData.offer.listingPolicies?.returnPolicy
+        hasFulfillmentPolicyId: !!offerData.listingPolicies["fulfillmentPolicyId"],
+        hasPaymentPolicyId: !!offerData.listingPolicies["paymentPolicyId"], 
+        hasReturnPolicyId: !!offerData.listingPolicies["returnPolicyId"]
       });
       
       // Map specific product types to more accurate eBay category IDs

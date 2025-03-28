@@ -14,9 +14,15 @@ import MemoryStore from 'memorystore';
 
 // Define types for eBay listing data
 interface EbayOfferPolicies {
+  // Legacy format (to be deprecated)
   fulfillmentPolicy?: any;
   paymentPolicy?: any;
   returnPolicy?: any;
+  
+  // New format with policy IDs (preferred by eBay)
+  fulfillmentPolicyId?: string;
+  paymentPolicyId?: string;
+  returnPolicyId?: string;
 }
 
 interface EbayOffer {
@@ -1615,21 +1621,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Push to eBay error:", error);
       
+      // Get the listing ID from request parameters
+      const listingIdParam = req.params.id;
+      const numericListingId = parseInt(listingIdParam);
+      
       // Capture any available request data to include in the error
-      let requestData = { listingId };
+      let requestData: Record<string, any> = { 
+        listingId: !isNaN(numericListingId) ? numericListingId : listingIdParam 
+      };
       
       try {
-        // Attempt to retrieve the listing again to include its data in the error
-        const errorListing = await storage.getListing(listingId);
-        if (errorListing) {
-          requestData = {
-            ...requestData,
-            title: errorListing.title,
-            condition: errorListing.condition,
-            price: errorListing.price,
-            description: errorListing.description ? errorListing.description.substring(0, 100) + "..." : null,
-            images: Array.isArray(errorListing.images) ? errorListing.images.length : 0
-          };
+        // Only attempt retrieval if we have a valid ID
+        if (!isNaN(numericListingId)) {
+          // Attempt to retrieve the listing again to include its data in the error
+          const errorListing = await storage.getListing(numericListingId);
+          if (errorListing) {
+            requestData = {
+              ...requestData,
+              title: errorListing.title,
+              condition: errorListing.condition,
+              price: errorListing.price,
+              description: errorListing.description ? errorListing.description.substring(0, 100) + "..." : null,
+              images: Array.isArray(errorListing.images) ? errorListing.images.length : 0
+            };
+          }
         }
       } catch (dataError) {
         // If we can't get the listing data, just continue with the basics
