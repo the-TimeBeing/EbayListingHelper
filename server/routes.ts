@@ -1500,33 +1500,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       };
       
-      // Add listing policies from template if available
-      if (templateShippingPolicy || templatePaymentPolicy || templateReturnPolicy) {
-        ebayListingData.offer.listingPolicies = {
-          ...(templateShippingPolicy ? { fulfillmentPolicy: templateShippingPolicy } : { 
-            fulfillmentPolicy: {
-              shippingCost: {
-                value: 5.00,
-                currency: "USD"
-              }
-            }
-          }),
-          ...(templatePaymentPolicy ? { paymentPolicy: templatePaymentPolicy } : { 
-            paymentPolicy: {
-              paymentMethod: "PAYPAL"
-            }
-          }),
-          ...(templateReturnPolicy ? { returnPolicy: templateReturnPolicy } : { 
-            returnPolicy: {
-              returnsAccepted: true,
-              returnPeriod: {
-                value: 30,
-                unit: "DAY"
-              }
-            }
-          })
-        };
-      }
+      // Add listing policies using policy IDs as required by eBay
+      // For now, we'll use default policy IDs until we implement a way to get the seller's actual policy IDs
+      // In a production app, these would be retrieved using the Account API (GET /account/fulfillment_policy, etc.)
+      ebayListingData.offer.listingPolicies = {
+        // Use policy IDs instead of inline policies as required by eBay
+        fulfillmentPolicyId: "3047524000", // Default fulfillment policy ID - this should be retrieved from user's account
+        paymentPolicyId: "3047397000",     // Default payment policy ID - this should be retrieved from user's account 
+        returnPolicyId: "3047348000"       // Default return policy ID - this should be retrieved from user's account
+      };
       
       // Process images - convert base64 encoded images to URLs for eBay
       // eBay requires image URLs, not base64 encoded data
