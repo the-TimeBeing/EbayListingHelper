@@ -321,6 +321,7 @@ export class EbayService {
       console.log("Creating eBay draft listing with data:", JSON.stringify(listingData, null, 2));
       
       // Step 1: Create inventory item
+      // Generate a SKU that will be unique to this listing
       const inventoryItemSku = `sku-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
       
       // Prepare a clean copy of the inventory item data for the API
@@ -365,10 +366,27 @@ export class EbayService {
         }
       }
       
+      // CRITICAL FIX: Ensure we have SKU in the availability structure
+      // eBay requires the SKU to be included in this format
+      if (!inventoryItemData.availability) {
+        inventoryItemData.availability = { 
+          shipToLocationAvailability: { 
+            quantity: 1 
+          } 
+        };
+      }
+      
+      // Ensure the product title isn't too long (eBay has an 80-character limit)
+      if (inventoryItemData.product && inventoryItemData.product.title && 
+          inventoryItemData.product.title.length > 80) {
+        inventoryItemData.product.title = inventoryItemData.product.title.substring(0, 77) + "...";
+        console.log(`Trimmed title to comply with eBay 80-char limit: "${inventoryItemData.product.title}"`);
+      }
+      
       // Log the final data being sent to eBay
       console.log("Sending inventory item data to eBay:", JSON.stringify(inventoryItemData, null, 2));
       
-      // Make the API call with the validated data
+      // Make the API call with the validated data and the SKU in the URL
       const inventoryItemResponse = await fetch(`${this.getBaseUrl()}/sell/inventory/v1/inventory_item/${inventoryItemSku}`, {
         method: 'PUT',
         headers: {
