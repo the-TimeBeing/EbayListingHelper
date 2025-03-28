@@ -14,12 +14,7 @@ import MemoryStore from 'memorystore';
 
 // Define types for eBay listing data
 interface EbayOfferPolicies {
-  // Legacy format (to be deprecated)
-  fulfillmentPolicy?: any;
-  paymentPolicy?: any;
-  returnPolicy?: any;
-  
-  // New format with policy IDs (preferred by eBay)
+  // Only using policy IDs as required by eBay API
   fulfillmentPolicyId?: string;
   paymentPolicyId?: string;
   returnPolicyId?: string;
@@ -1492,23 +1487,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           },
           categoryId: templateCategoryId, // Use category ID from template
-          listingPolicies: {
-            fulfillmentPolicy: undefined,
-            paymentPolicy: undefined,
-            returnPolicy: undefined
-          } // Initialize with proper structure that will be populated below
+          listingPolicies: {} // Will be populated with policy IDs later
         }
       };
       
-      // Add listing policies using policy IDs as required by eBay
-      // For now, we'll use default policy IDs until we implement a way to get the seller's actual policy IDs
-      // In a production app, these would be retrieved using the Account API (GET /account/fulfillment_policy, etc.)
-      ebayListingData.offer.listingPolicies = {
-        // Use policy IDs instead of inline policies as required by eBay
-        fulfillmentPolicyId: "3047524000", // Default fulfillment policy ID - this should be retrieved from user's account
-        paymentPolicyId: "3047397000",     // Default payment policy ID - this should be retrieved from user's account 
-        returnPolicyId: "3047348000"       // Default return policy ID - this should be retrieved from user's account
-      };
+      // Get the seller's actual policy IDs from their eBay account
+      try {
+        console.log("Retrieving seller's eBay policy IDs");
+        const policies = await ebayService.getSellerPolicies(req.session.userId as number);
+        
+        // Initialize the listingPolicies object with policy IDs
+        ebayListingData.offer.listingPolicies = {};
+        
+        // Add each policy ID if available
+        if (policies.fulfillmentPolicyId) {
+          ebayListingData.offer.listingPolicies.fulfillmentPolicyId = policies.fulfillmentPolicyId;
+        }
+        if (policies.paymentPolicyId) {
+          ebayListingData.offer.listingPolicies.paymentPolicyId = policies.paymentPolicyId;
+        }
+        if (policies.returnPolicyId) {
+          ebayListingData.offer.listingPolicies.returnPolicyId = policies.returnPolicyId;
+        }
+        
+        console.log("Using seller's eBay policy IDs:", JSON.stringify({
+          fulfillmentPolicyId: policies.fulfillmentPolicyId || "missing",
+          paymentPolicyId: policies.paymentPolicyId || "missing",
+          returnPolicyId: policies.returnPolicyId || "missing"
+        }));
+      } catch (policyError) {
+        console.error("Failed to retrieve seller's eBay policy IDs:", policyError);
+        
+        // Fallback to placeholder IDs for testing only - these will NOT work in production!
+        console.warn("Using placeholder policy IDs - this will likely fail for real listings");
+        ebayListingData.offer.listingPolicies = {
+          fulfillmentPolicyId: "default-fulfillment-policy",
+          paymentPolicyId: "default-payment-policy",
+          returnPolicyId: "default-return-policy"
+        };
+      }
       
       // Process images - convert base64 encoded images to URLs for eBay
       // eBay requires image URLs, not base64 encoded data

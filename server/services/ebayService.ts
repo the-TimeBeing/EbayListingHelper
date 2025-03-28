@@ -671,10 +671,13 @@ export class EbayService {
       });
       
       if (fulfillmentResponse.ok) {
-        const fulfillmentData = await fulfillmentResponse.json();
+        const fulfillmentData = await fulfillmentResponse.json() as any;
         console.log("Retrieved fulfillment policies:", JSON.stringify(fulfillmentData, null, 2));
         
-        if (fulfillmentData && fulfillmentData.fulfillmentPolicies && fulfillmentData.fulfillmentPolicies.length > 0) {
+        if (fulfillmentData && 
+            fulfillmentData.fulfillmentPolicies && 
+            Array.isArray(fulfillmentData.fulfillmentPolicies) && 
+            fulfillmentData.fulfillmentPolicies.length > 0) {
           // Use the first policy found (sellers typically have default policies)
           policies.fulfillmentPolicyId = fulfillmentData.fulfillmentPolicies[0].fulfillmentPolicyId;
           console.log(`Using fulfillment policy: ${policies.fulfillmentPolicyId}`);
@@ -692,10 +695,13 @@ export class EbayService {
       });
       
       if (paymentResponse.ok) {
-        const paymentData = await paymentResponse.json();
+        const paymentData = await paymentResponse.json() as any;
         console.log("Retrieved payment policies:", JSON.stringify(paymentData, null, 2));
         
-        if (paymentData && paymentData.paymentPolicies && paymentData.paymentPolicies.length > 0) {
+        if (paymentData && 
+            paymentData.paymentPolicies && 
+            Array.isArray(paymentData.paymentPolicies) && 
+            paymentData.paymentPolicies.length > 0) {
           policies.paymentPolicyId = paymentData.paymentPolicies[0].paymentPolicyId;
           console.log(`Using payment policy: ${policies.paymentPolicyId}`);
         }
@@ -712,10 +718,13 @@ export class EbayService {
       });
       
       if (returnResponse.ok) {
-        const returnData = await returnResponse.json();
+        const returnData = await returnResponse.json() as any;
         console.log("Retrieved return policies:", JSON.stringify(returnData, null, 2));
         
-        if (returnData && returnData.returnPolicies && returnData.returnPolicies.length > 0) {
+        if (returnData && 
+            returnData.returnPolicies && 
+            Array.isArray(returnData.returnPolicies) && 
+            returnData.returnPolicies.length > 0) {
           policies.returnPolicyId = returnData.returnPolicies[0].returnPolicyId;
           console.log(`Using return policy: ${policies.returnPolicyId}`);
         }
