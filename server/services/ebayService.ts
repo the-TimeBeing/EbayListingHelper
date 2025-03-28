@@ -452,10 +452,37 @@ export class EbayService {
           !listingData.offer.listingPolicies?.returnPolicyId) {
         console.warn("No policy IDs found - using default values. In production, get these from eBay Seller Hub.");
         
-        // For testing only - in production, these must be valid policy IDs from the seller's account
-        offerData.listingPolicies["fulfillmentPolicyId"] = "default-fulfillment-policy";
-        offerData.listingPolicies["paymentPolicyId"] = "default-payment-policy";
-        offerData.listingPolicies["returnPolicyId"] = "default-return-policy";
+        // Attempt to retrieve actual policy IDs from the seller's account
+        try {
+          const policies = await this.getSellerPolicies(userId);
+          
+          if (policies.fulfillmentPolicyId) {
+            offerData.listingPolicies["fulfillmentPolicyId"] = policies.fulfillmentPolicyId;
+          } else {
+            console.warn("No fulfillment policy found for seller - creating eBay listings will likely fail");
+          }
+          
+          if (policies.paymentPolicyId) {
+            offerData.listingPolicies["paymentPolicyId"] = policies.paymentPolicyId;
+          } else {
+            console.warn("No payment policy found for seller - creating eBay listings will likely fail");
+          }
+          
+          if (policies.returnPolicyId) {
+            offerData.listingPolicies["returnPolicyId"] = policies.returnPolicyId;
+          } else {
+            console.warn("No return policy found for seller - creating eBay listings will likely fail");
+          }
+        } catch (policyError) {
+          console.error("Failed to retrieve seller policies:", policyError);
+          console.warn("Using placeholder policy IDs - this will likely fail in production");
+          
+          // For sandbox testing - these will NOT work in production
+          // Production requires actual policy IDs from the seller's account
+          offerData.listingPolicies["fulfillmentPolicyId"] = "3047524000";
+          offerData.listingPolicies["paymentPolicyId"] = "3047397000";
+          offerData.listingPolicies["returnPolicyId"] = "3047348000";
+        }
       }
       
       console.log("Using offer data from template:", {
@@ -615,6 +642,91 @@ export class EbayService {
     } catch (error) {
       console.error(`[EBAY SERVICE] Error refreshing token:`, error);
       throw new Error(`Failed to refresh eBay token: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Retrieves the seller's policy IDs for fulfillment, payment, and return policies.
+   * This is necessary for creating offers with eBay's Inventory API.
+   */
+  async getSellerPolicies(userId: number): Promise<{
+    fulfillmentPolicyId?: string;
+    paymentPolicyId?: string;
+    returnPolicyId?: string;
+  }> {
+    const accessToken = await this.ensureValidToken(userId);
+    const policies = {
+      fulfillmentPolicyId: undefined,
+      paymentPolicyId: undefined,
+      returnPolicyId: undefined
+    };
+    
+    try {
+      // Get fulfillment policies
+      const fulfillmentResponse = await fetch(`${this.getBaseUrl()}/sell/account/v1/fulfillment_policy?marketplace_id=EBAY_US`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (fulfillmentResponse.ok) {
+        const fulfillmentData = await fulfillmentResponse.json();
+        console.log("Retrieved fulfillment policies:", JSON.stringify(fulfillmentData, null, 2));
+        
+        if (fulfillmentData && fulfillmentData.fulfillmentPolicies && fulfillmentData.fulfillmentPolicies.length > 0) {
+          // Use the first policy found (sellers typically have default policies)
+          policies.fulfillmentPolicyId = fulfillmentData.fulfillmentPolicies[0].fulfillmentPolicyId;
+          console.log(`Using fulfillment policy: ${policies.fulfillmentPolicyId}`);
+        }
+      } else {
+        console.warn("Failed to retrieve fulfillment policies:", await fulfillmentResponse.text());
+      }
+      
+      // Get payment policies
+      const paymentResponse = await fetch(`${this.getBaseUrl()}/sell/account/v1/payment_policy?marketplace_id=EBAY_US`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (paymentResponse.ok) {
+        const paymentData = await paymentResponse.json();
+        console.log("Retrieved payment policies:", JSON.stringify(paymentData, null, 2));
+        
+        if (paymentData && paymentData.paymentPolicies && paymentData.paymentPolicies.length > 0) {
+          policies.paymentPolicyId = paymentData.paymentPolicies[0].paymentPolicyId;
+          console.log(`Using payment policy: ${policies.paymentPolicyId}`);
+        }
+      } else {
+        console.warn("Failed to retrieve payment policies:", await paymentResponse.text());
+      }
+      
+      // Get return policies
+      const returnResponse = await fetch(`${this.getBaseUrl()}/sell/account/v1/return_policy?marketplace_id=EBAY_US`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (returnResponse.ok) {
+        const returnData = await returnResponse.json();
+        console.log("Retrieved return policies:", JSON.stringify(returnData, null, 2));
+        
+        if (returnData && returnData.returnPolicies && returnData.returnPolicies.length > 0) {
+          policies.returnPolicyId = returnData.returnPolicies[0].returnPolicyId;
+          console.log(`Using return policy: ${policies.returnPolicyId}`);
+        }
+      } else {
+        console.warn("Failed to retrieve return policies:", await returnResponse.text());
+      }
+      
+      return policies;
+    } catch (error) {
+      console.error("Error retrieving seller policies:", error);
+      throw new Error(`Failed to get seller policies: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
